@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,72627,(o,e,t)=>{e.exports=o.r(74213)},2675,o=>{"use strict";o.i(2746),o.i(60114),o.i(56635);let e=Error("Cannot find module '@supabase/supabase-js'");throw e.code="MODULE_NOT_FOUND",e}]);

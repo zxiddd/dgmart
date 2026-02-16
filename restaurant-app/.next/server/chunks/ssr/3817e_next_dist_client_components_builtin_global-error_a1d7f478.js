@@ -1,0 +1,3 @@
+module.exports=[22407,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(70782);a.n(d("[project]/Desktop/degloormart/restaurant-app/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},71872,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(70782);a.n(d("[project]/Desktop/degloormart/restaurant-app/node_modules/next/dist/client/components/builtin/global-error.js"))},79182,a=>{"use strict";a.i(22407);var b=a.i(71872);a.n(b)}];
+
+//# sourceMappingURL=3817e_next_dist_client_components_builtin_global-error_a1d7f478.js.map
