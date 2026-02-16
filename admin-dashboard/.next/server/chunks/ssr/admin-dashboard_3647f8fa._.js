@@ -1,0 +1,3 @@
+module.exports=[40563,a=>{a.n(a.i(51052))},46092,a=>{a.n(a.i(49526))},23906,a=>{a.n(a.i(7999))},13799,a=>{a.n(a.i(84822))},62616,a=>{a.n(a.i(29019))},19343,a=>{a.n(a.i(46667))},37005,a=>{"use strict";var b=a.i(16520);function c(){return(0,b.jsxs)("div",{children:[(0,b.jsx)("h1",{className:"text-2xl font-bold text-gray-800 mb-6",children:"Settings"}),(0,b.jsx)("div",{className:"bg-white p-6 rounded-xl shadow-sm border border-gray-100",children:(0,b.jsx)("p",{className:"text-gray-500",children:"Platform settings interface coming soon."})})]})}a.s(["default",()=>c])}];
+
+//# sourceMappingURL=admin-dashboard_3647f8fa._.js.map
