@@ -20,12 +20,11 @@ module.exports = {
     cors: {
         allowedOrigins: [
             process.env.USER_APP_URL || 'http://localhost:8081',
-            process.env.ADMIN_DASHBOARD_URL || 'http://localhost:3000',
+            process.env.ADMIN_DASHBOARD_URL || 'http://localhost:3004',
             process.env.RESTAURANT_APP_URL || 'http://localhost:3003',
-            process.env.DELIVERY_APP_URL || 'http://localhost:3002',
-            'http://172.20.10.2:8081',
+            process.env.DELIVERY_APP_URL || 'http://localhost:3001',
             '*'
-        ],
+        ].filter(origin => origin !== '*' || process.env.NODE_ENV === 'development'),
     },
     databaseUrl: process.env.DATABASE_URL,
     supabase: {
