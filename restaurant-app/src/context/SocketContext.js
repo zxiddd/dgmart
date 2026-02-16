@@ -13,16 +13,15 @@ export const SocketProvider = ({ children }) => {
 
     useEffect(() => {
         if (user) {
-            const newSocket = io('http://localhost:5000', {
+            // Get backend URL from environment variable, removing '/api' suffix if present
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+            
+            const newSocket = io(backendUrl, {
                 withCredentials: true,
             });
 
             newSocket.on('connect', () => {
                 console.log('Socket connected:', newSocket.id);
-                // Join restaurant room if needed. 
-                // Typically backend joins socket to room based on auth user id or we emit 'join'.
-                // Backend socketHandler.js: socket.join(`user:${userId}`) is common.
-                // Let's assume standard behavior or emit a join event if needed.
                 newSocket.emit('join', { userId: user.id, role: 'restaurant' });
             });
 
