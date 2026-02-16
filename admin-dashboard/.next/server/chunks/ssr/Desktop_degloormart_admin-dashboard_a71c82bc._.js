@@ -1,3 +1,0 @@
-module.exports=[38044,a=>{a.n(a.i(59443))},33635,a=>{a.n(a.i(58899))},20607,a=>{a.n(a.i(66343))},51596,a=>{a.n(a.i(73720))},32783,a=>{a.n(a.i(7505))},8725,a=>{a.n(a.i(97842))},91543,a=>{"use strict";var b=a.i(92085);function c(){return(0,b.jsxs)("div",{children:[(0,b.jsx)("h1",{className:"text-2xl font-bold text-gray-800 mb-6",children:"Delivery Partners"}),(0,b.jsx)("div",{className:"bg-white p-6 rounded-xl shadow-sm border border-gray-100",children:(0,b.jsx)("p",{className:"text-gray-500",children:"Delivery partner management interface coming soon."})})]})}a.s(["default",()=>c])}];
-
-//# sourceMappingURL=Desktop_degloormart_admin-dashboard_a71c82bc._.js.map
