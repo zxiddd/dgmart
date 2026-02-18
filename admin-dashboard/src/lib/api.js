@@ -1,8 +1,17 @@
 import axios from 'axios';
 import { supabase } from '../config/supabase';
 
+const getBaseURL = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname === 'localhost') return 'http://localhost:5000/api';
+    }
+    return 'http://172.20.10.2:5000/api';
+};
+
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://172.20.10.2:5000/api', // Admin DB runs on local PC IP for cross-device visibility
+    baseURL: getBaseURL(),
     headers: {
         'Content-Type': 'application/json',
     },

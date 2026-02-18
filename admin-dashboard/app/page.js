@@ -21,15 +21,23 @@ export default function LoginPage() {
         try {
             await login(email, password);
             try {
+                console.log('Verifying admin privileges at:', api.defaults.baseURL);
                 await api.get('/admin/dashboard');
                 router.push('/dashboard');
             } catch (roleError) {
-                await supabase.auth.signOut();
-                setError('Access denied: You do not have admin privileges.');
+                console.error('Role Verification Error:', roleError);
+                if (roleError.response?.status === 403 || roleError.response?.status === 401) {
+                    await supabase.auth.signOut();
+                    setError('Access denied: You do not have admin privileges.');
+                } else if (!roleError.response) {
+                    setError(`Network Error: Cannot connect to server at ${api.defaults.baseURL}. Please ensure the backend is running.`);
+                } else {
+                    setError(`Error: ${roleError.response?.data?.message || 'Verification failed'}`);
+                }
             }
         } catch (err) {
-            console.error(err);
-            setError('Invalid email or password');
+            console.error('Login Error:', err);
+            setError(err.message || 'Invalid email or password');
         } finally {
             setLoading(false);
         }
@@ -60,7 +68,7 @@ export default function LoginPage() {
                                 <p className="text-sm text-white/80">Admin Portal</p>
                             </div>
                         </div>
-                        
+
                         <div className="space-y-6 mt-12">
                             <div className="flex items-start gap-4">
                                 <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
@@ -91,7 +99,7 @@ export default function LoginPage() {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="text-sm text-white/60">
                         © 2026 DegloorMart. All rights reserved.
                     </div>
