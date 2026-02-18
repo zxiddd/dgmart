@@ -1,3 +1,4 @@
+console.log('🚀 API Boot sequence initiated...');
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
@@ -140,15 +141,16 @@ app.use(errorHandler);
 
 // ============ START SERVER ============
 
-const PORT = config.port;
+const PORT = config.port || process.env.PORT || 5000;
+
+console.log(`Checking PORT binding: ${PORT}`);
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`
 ╔══════════════════════════════════════════════╗
 ║                                              ║
 ║      🍔 DEGLOOR MART API SERVER 🍔          ║
-║      (Restarted 3)                           ║
-║   Server:    http://localhost:${PORT}           ║
+║   Server:    http://0.0.0.0:${PORT}             ║
 ║   Env:       ${config.nodeEnv.padEnd(30)}║
 ║   Socket.io: Enabled                        ║
 ║                                              ║

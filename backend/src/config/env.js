@@ -1,3 +1,4 @@
+console.log('📡 Loading environment configuration...');
 require('dotenv').config();
 
 module.exports = {
