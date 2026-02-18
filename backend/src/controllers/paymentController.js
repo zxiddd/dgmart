@@ -4,10 +4,19 @@ const db = require('../config/db');
 const { PAYMENT_STATUS, ORDER_STATUS } = require('../config/constants');
 const config = require('../config/env');
 
-const razorpay = new Razorpay({
-    key_id: config.razorpay.keyId,
-    key_secret: config.razorpay.keySecret,
-});
+let razorpay = null;
+try {
+    if (config.razorpay.keyId && config.razorpay.keySecret) {
+        razorpay = new Razorpay({
+            key_id: config.razorpay.keyId,
+            key_secret: config.razorpay.keySecret,
+        });
+    } else {
+        console.warn('⚠️ Razorpay keys missing in PaymentController. Online payments disabled.');
+    }
+} catch (error) {
+    console.warn('⚠️ Razorpay initialization failed in PaymentController:', error.message);
+}
 
 /**
  * Handle Razorpay Webhook
@@ -106,6 +115,7 @@ const createPaymentOrder = async (req, res, next) => {
 
         if (order.user_id !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
 
+        if (!razorpay) return res.status(400).json({ message: 'Online payments are currently unavailable.' });
         const rzpOrder = await razorpay.orders.create({
             amount: Math.round(order.total * 100),
             currency: 'INR',
@@ -168,7 +178,11 @@ const processRefund = async (req, res, next) => {
         } else {
             // Razorpay Refund
             try {
-                await razorpay.payments.refund(resPayment.rows[0].razorpay_payment_id, { amount: Math.round(order.total * 100), notes: { reason } });
+                if (razorpay) {
+                    await razorpay.payments.refund(resPayment.rows[0].razorpay_payment_id, { amount: Math.round(order.total * 100), notes: { reason } });
+                } else {
+                    console.error('Cannot process Razorpay refund: Razorpay not initialized');
+                }
             } catch (e) { console.error('Rzp refund failed', e); }
 
             await client.query("UPDATE payments SET status = 'refunded', refunded_at = NOW() WHERE id = $1", [resPayment.rows[0].id]);
@@ -214,6 +228,7 @@ const createRechargeOrder = async (req, res, next) => {
             return res.status(400).json({ message: 'Invalid recharge amount' });
         }
 
+        if (!razorpay) return res.status(400).json({ message: 'Wallet recharge via Razorpay is currently unavailable.' });
         const rzpOrder = await razorpay.orders.create({
             amount: Math.round(amount * 100),
             currency: 'INR',

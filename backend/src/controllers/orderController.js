@@ -7,10 +7,20 @@ const config = require('../config/env');
 const fs = require('fs');
 const path = require('path');
 
-const razorpay = new Razorpay({
-    key_id: config.razorpay.keyId,
-    key_secret: config.razorpay.keySecret,
-});
+let razorpay = null;
+try {
+    if (config.razorpay.keyId && config.razorpay.keySecret) {
+        razorpay = new Razorpay({
+            key_id: config.razorpay.keyId,
+            key_secret: config.razorpay.keySecret,
+        });
+        console.log('✅ Razorpay initialized successfully');
+    } else {
+        console.warn('⚠️ Razorpay keys missing. Payment features will be limited.');
+    }
+} catch (error) {
+    console.warn('⚠️ Razorpay initialization failed:', error.message);
+}
 
 const logDebug = (msg) => {
     try {
@@ -148,6 +158,7 @@ const createOrder = async (req, res, next) => {
         const order = orderRes.rows[0];
 
         if (payment_method === PAYMENT_METHOD.RAZORPAY) {
+            if (!razorpay) throw new Error('Online payments are currently unavailable. Please use COD.');
             const rzpOrder = await razorpay.orders.create({
                 amount: Math.round(total * 100),
                 currency: 'INR',
