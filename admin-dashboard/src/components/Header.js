@@ -1,15 +1,16 @@
 'use client';
 import { useAuth } from '@/context/AuthContext';
-import { Bell, Search, User } from 'lucide-react';
+import { Bell, Search, User, Menu } from 'lucide-react';
 
-export default function Header() {
+export default function Header({ onToggleSidebar }) {
     const { user } = useAuth();
 
     return (
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 md:px-8 sticky top-0 z-40">
             <div className="md:hidden">
-                {/* Mobile menu button placeholder */}
-                <span className="text-xl font-bold text-primary">DM</span>
+                <button onClick={onToggleSidebar} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <Menu size={24} />
+                </button>
             </div>
 
             <div className="hidden md:flex items-center gap-4 flex-1 max-w-lg ml-64">

@@ -74,12 +74,14 @@ export default function SettingsPage() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-                    <ImageUpload
-                        value={formData.image_url}
-                        onChange={(url) => setFormData({ ...formData, image_url: url })}
-                        folder="restaurants"
-                        label="Restaurant Banner"
-                    />
+                    <div className="grid grid-cols-1 gap-6">
+                        <ImageUpload
+                            value={formData.image_url}
+                            onChange={(url) => setFormData({ ...formData, image_url: url })}
+                            folder="restaurants"
+                            label="Restaurant Logo/Icon"
+                        />
+                    </div>
 
                     <div className="grid grid-cols-1 gap-4">
                         <div>

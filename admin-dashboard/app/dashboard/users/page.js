@@ -9,11 +9,16 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const [activeTab, setActiveTab] = useState('all');
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/admin/users?page=${page}&limit=20`);
+            let url = `/admin/users?page=${page}&limit=20`;
+            if (activeTab !== 'all') {
+                url += `&role=${activeTab}`;
+            }
+            const res = await api.get(url);
             if (res.data.success) {
                 setUsers(res.data.data.users);
                 setTotalPages(Math.ceil(res.data.data.pagination.total / 20));
@@ -28,7 +33,12 @@ export default function UsersPage() {
 
     useEffect(() => {
         fetchUsers();
-    }, [page]);
+    }, [page, activeTab]);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setPage(1);
+    };
 
     const handleToggleStatus = async (user) => {
         if (!confirm(`Are you sure you want to ${user.is_active === false ? 'unblock' : 'block'} this user?`)) return;
@@ -42,9 +52,36 @@ export default function UsersPage() {
         }
     };
 
+    const tabs = [
+        { id: 'all', label: 'All Users' },
+        { id: 'customer', label: 'Customers' },
+        { id: 'restaurant_owner', label: 'Restaurants' },
+        { id: 'delivery_partner', label: 'Delivery Partners' },
+        { id: 'admin', label: 'Admins' },
+    ];
+
     return (
         <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">Users Management</h1>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Users Management</h1>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex overflow-x-auto gap-2 mb-6 border-b border-gray-200 pb-1">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.id)}
+                        className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg border-b-2 transition-colors ${activeTab === tab.id
+                                ? 'border-primary text-primary bg-primary/5'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {loading ? (
                     <div className="p-8 text-center">Loading users...</div>
@@ -82,9 +119,9 @@ export default function UsersPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                                                    u.role === 'delivery_partner' ? 'bg-orange-100 text-orange-700' :
-                                                        u.role === 'restaurant_owner' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-gray-100 text-gray-700'
+                                                u.role === 'delivery_partner' ? 'bg-orange-100 text-orange-700' :
+                                                    u.role === 'restaurant_owner' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-gray-100 text-gray-700'
                                                 }`}>
                                                 {u.role.replace('_', ' ')}
                                             </span>

@@ -9,55 +9,96 @@ const listRestaurants = async (req, res, next) => {
     try {
         const { search, cuisine, is_veg_only, rating_min, lat, lng, radius_km, page, limit, sort_by } = req.query;
 
-        // Base Query
-        let query = `
-            SELECT * FROM restaurants 
-            WHERE is_active = true 
-            AND status = $1
-        `;
-        const params = [RESTAURANT_STATUS.ACTIVE || 'active']; // Fallback if constant is undefined/wrong
-        let paramCount = 1;
+        let restaurants = [];
+        const activeStatus = RESTAURANT_STATUS.ACTIVE || 'active';
 
-        // Search
         if (search) {
-            paramCount++;
-            query += ` AND (name ILIKE $${paramCount} OR $${paramCount} = ANY(cuisine_type))`;
-            params.push(`%${search}%`);
-        }
+            // GLOBAL SEARCH: Restaurants + Menu Items
+            const searchQuery = `%${search}%`;
+            const globalQuery = `
+                -- 1. Matching Restaurants
+                SELECT 
+                    id, 
+                    name, 
+                    description, 
+                    cuisine_type, 
+                    image_url, 
+                    banner_url, 
+                    rating, 
+                    total_reviews, 
+                    avg_prep_time_mins, 
+                    delivery_radius_km, 
+                    min_order_amount,
+                    'restaurant' as result_type,
+                    id as restaurant_id,
+                    name as restaurant_name,
+                    NULL as price,
+                    lat,
+                    lng
+                FROM restaurants
+                WHERE is_active = true AND status = $1
+                AND (name ILIKE $2 OR $2 = ANY(cuisine_type))
 
-        // Cuisine
-        if (cuisine) {
-            paramCount++;
-            query += ` AND $${paramCount} = ANY(cuisine_type)`;
-            params.push(cuisine.toLowerCase());
-        }
+                UNION ALL
 
-        // Veg Only
-        if (is_veg_only === 'true') {
-            // Check if all menu items are veg? Or if restaurant is marked as veg?
-            // Schema doesn't have is_veg_only on restaurant, only on menu_items.
-            // But strict requirement might imply we filter restaurants that serve ONLY veg.
-            // For now, let's assume we don't have a column, or I should have added it.
-            // Schema has `cuisine_type` text[].
-            // If the user meant "Pure Veg" restaurants.
-            // Let's filter by cuisine_type containing 'veg' or similar if applicable, 
-            // OR if I added `is_veg` column? 
-            // Looking at schema: `restaurant` table has `cuisine_type`. `menu_items` has `is_veg`.
-            // I'll skip this filter on SQL level for now unless I join menu_items, which is expensive.
-            // Alternatively, I can do client side filtering or add `is_pure_veg` column to restaurants later.
-            // For now, I'll ignore or maybe approximate.
-        }
+                -- 2. Matching Menu Items
+                SELECT 
+                    m.id, 
+                    m.name, 
+                    m.description, 
+                    ARRAY[c.name] as cuisine_type, 
+                    m.image_url, 
+                    NULL as banner_url, 
+                    r.rating, 
+                    r.total_reviews, 
+                    r.avg_prep_time_mins, 
+                    r.delivery_radius_km, 
+                    r.min_order_amount,
+                    'dish' as result_type,
+                    r.id as restaurant_id,
+                    r.name as restaurant_name,
+                    m.price,
+                    r.lat,
+                    r.lng
+                FROM menu_items m
+                JOIN restaurants r ON m.restaurant_id = r.id
+                LEFT JOIN menu_categories c ON m.category_id = c.id
+                WHERE r.is_active = true AND r.status = $1
+                AND m.is_available = true
+                AND (m.name ILIKE $2 OR m.description ILIKE $2)
+            `;
+            const { rows } = await db.query(globalQuery, [activeStatus, searchQuery]);
+            restaurants = rows;
+        } else {
+            // Standard category/list query
+            let query = `
+                SELECT 
+                    *,
+                    'restaurant' as result_type,
+                    id as restaurant_id,
+                    name as restaurant_name
+                FROM restaurants 
+                WHERE is_active = true 
+                AND status = $1
+            `;
+            const params = [activeStatus];
+            let paramCount = 1;
 
-        // Rating
-        if (rating_min) {
-            paramCount++;
-            query += ` AND rating >= $${paramCount}`;
-            params.push(parseFloat(rating_min));
-        }
+            if (cuisine) {
+                paramCount++;
+                query += ` AND $${paramCount} = ANY(cuisine_type)`;
+                params.push(cuisine.toLowerCase());
+            }
 
-        // Execute Query
-        const { rows } = await db.query(query, params);
-        let restaurants = rows;
+            if (rating_min) {
+                paramCount++;
+                query += ` AND rating >= $${paramCount}`;
+                params.push(parseFloat(rating_min));
+            }
+
+            const { rows } = await db.query(query, params);
+            restaurants = rows;
+        }
 
         // Geospatial Filtering (Application Layer for simplicity without PostGIS)
         if (lat && lng) {
@@ -210,6 +251,13 @@ const updateRestaurant = async (req, res, next) => {
         const { id } = req.params;
         const { name, description, address, lat, lng, image_url, banner_url, min_order_amount, avg_prep_time_mins, delivery_radius_km, cuisine_type } = req.body;
 
+        console.log('Update Restaurant Body:', {
+            id,
+            banner_url_received: banner_url,
+            image_url_received: image_url,
+            body_keys: Object.keys(req.body)
+        });
+
         // Verify ownership
         const check = await db.query('SELECT owner_id FROM restaurants WHERE id = $1', [id]);
         if (check.rows.length === 0) return res.status(404).json({ success: false, message: 'Restaurant not found' });
@@ -238,8 +286,44 @@ const updateRestaurant = async (req, res, next) => {
 
         const values = [name, description, address, lat, lng, image_url, banner_url, min_order_amount, avg_prep_time_mins, delivery_radius_km, cuisine_type, id];
         const { rows } = await db.query(query, values);
+        const updatedRestaurant = rows[0];
 
-        res.json({ success: true, message: 'Restaurant updated', data: { restaurant: rows[0] } });
+        // --- Auto-Sync Banner Logic (uses image_url/logo as banner) ---
+        // Use image_url (logo) as the home screen banner image
+        const bannerImageUrl = updatedRestaurant.image_url;
+        console.log('Update Restaurant - Banner Sync Check:', { bannerImageUrl, id });
+
+        if (bannerImageUrl) {
+            const bannerCheck = await db.query("SELECT id FROM banners WHERE target_screen = 'RestaurantDetails' AND target_id = $1", [id]);
+
+            const bannerTitle = updatedRestaurant.name;
+            const bannerSubtitle = (updatedRestaurant.cuisine_type || []).join(', ') + ' | ' + (updatedRestaurant.address || '').split(',')[0];
+            const gradientColors = ['#FFD700', '#FF8C00'];
+
+            if (bannerCheck.rows.length > 0) {
+                await db.query(`
+                    UPDATE banners SET 
+                        image_url = $1, 
+                        title = $2, 
+                        subtitle = $3, 
+                        updated_at = NOW() 
+                    WHERE id = $4`,
+                    [bannerImageUrl, bannerTitle, bannerSubtitle, bannerCheck.rows[0].id]
+                );
+                console.log('✅ Updated existing banner with logo image.');
+            } else {
+                await db.query(`
+                    INSERT INTO banners (image_url, target_screen, target_id, title, subtitle, gradient_colors, sort_order, is_active)
+                    VALUES ($1, 'RestaurantDetails', $2, $3, $4, $5, 0, true)
+                `, [bannerImageUrl, id, bannerTitle, bannerSubtitle, gradientColors]);
+                console.log('✅ Created new banner with logo image.');
+            }
+        } else {
+            console.log('No image_url yet, skipping banner sync.');
+        }
+        // ------------------------------
+
+        res.json({ success: true, message: 'Restaurant updated', data: { restaurant: updatedRestaurant } });
 
     } catch (error) {
         next(error);

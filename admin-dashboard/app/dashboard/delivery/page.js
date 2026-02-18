@@ -41,7 +41,16 @@ export default function DeliveryPage() {
 
     return (
         <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">Delivery Partners</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Delivery Partners</h1>
+                <a
+                    href="/dashboard/settings"
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                >
+                    <Truck size={18} />
+                    Delivery Settings
+                </a>
+            </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 {loading ? (
                     <div className="p-8 text-center">Loading delivery partners...</div>

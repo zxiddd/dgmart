@@ -12,6 +12,7 @@ const config = require('./config/env');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { initializeSocket } = require('./socket/socketHandler');
 
+
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -23,6 +24,7 @@ const paymentRoutes = require('./routes/payment.routes');
 const adminRoutes = require('./routes/admin.routes');
 const supportRoutes = require('./routes/support.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const bannerRoutes = require('./routes/banner.routes');
 
 // Initialize Express app
 const app = express();
@@ -46,6 +48,8 @@ app.use((req, res, next) => {
     req.io = io;
     next();
 });
+
+
 
 // ============ MIDDLEWARE ============
 
@@ -71,6 +75,8 @@ app.use(compression());
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+
 
 // Logging
 if (config.nodeEnv === 'development') {
@@ -125,6 +131,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/banners', bannerRoutes);
 
 // ============ ERROR HANDLING ============
 
@@ -135,7 +142,7 @@ app.use(errorHandler);
 
 const PORT = config.port;
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`
 ╔══════════════════════════════════════════════╗
 ║                                              ║

@@ -16,6 +16,7 @@ export default function AddRestaurantModal({ isOpen, onClose, onRestaurantAdded,
         delivery_fee: 20,
         avg_delivery_time_mins: 30,
         image_url: '',
+        banner_url: '',
         is_active: true
     });
 
@@ -25,7 +26,8 @@ export default function AddRestaurantModal({ isOpen, onClose, onRestaurantAdded,
                 setFormData({
                     ...initialData,
                     cuisine_type: Array.isArray(initialData.cuisine_type) ? initialData.cuisine_type.join(', ') : (initialData.cuisine_type || ''),
-                    avg_delivery_time_mins: initialData.avg_prep_time_mins || 30
+                    avg_delivery_time_mins: initialData.avg_prep_time_mins || 30,
+                    banner_url: initialData.banner_url || ''
                 });
             } else {
                 setFormData({
@@ -39,6 +41,7 @@ export default function AddRestaurantModal({ isOpen, onClose, onRestaurantAdded,
                     delivery_fee: 20,
                     avg_delivery_time_mins: 30,
                     image_url: '',
+                    banner_url: '',
                     is_active: true
                 });
             }
@@ -59,6 +62,7 @@ export default function AddRestaurantModal({ isOpen, onClose, onRestaurantAdded,
                 lng: parseFloat(formData.lng),
                 cuisine_type: formData.cuisine_type.split(',').map(c => c.trim()).filter(c => c),
                 image_url: formData.image_url,
+                banner_url: formData.banner_url,
                 avg_prep_time_mins: parseInt(formData.avg_delivery_time_mins),
                 min_order_amount: 0,
                 delivery_radius_km: 10
@@ -183,12 +187,18 @@ export default function AddRestaurantModal({ isOpen, onClose, onRestaurantAdded,
                         </div>
 
                         {/* Image Upload */}
-                        <div className="col-span-2">
+                        <div className="col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <ImageUpload
                                 value={formData.image_url}
                                 onChange={(url) => setFormData({ ...formData, image_url: url })}
                                 folder="restaurants"
-                                label="Restaurant Banner Image"
+                                label="Restaurant Logo/Icon"
+                            />
+                            <ImageUpload
+                                value={formData.banner_url}
+                                onChange={(url) => setFormData({ ...formData, banner_url: url })}
+                                folder="restaurant-banners"
+                                label="Restaurant Banner (Home Screen)"
                             />
                         </div>
                     </div>

@@ -2,10 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Power, ShoppingBag, DollarSign, Star } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const [restaurant, setRestaurant] = useState(null);
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -27,6 +29,9 @@ export default function DashboardPage() {
                 }
             } catch (error) {
                 console.error('Failed to fetch dashboard data', error);
+                if (error.response && error.response.status === 404) {
+                    router.push('/setup');
+                }
             } finally {
                 setLoading(false);
             }
@@ -47,7 +52,17 @@ export default function DashboardPage() {
     };
 
     if (loading) return <div className="p-10 text-center">Loading Dashboard...</div>;
-    if (!restaurant) return <div className="p-10 text-center text-red-500">No Restaurant Found. Please contact admin.</div>;
+    if (!restaurant) return (
+        <div className="p-10 text-center space-y-4">
+            <p className="text-red-500">No Restaurant Found.</p>
+            <button
+                onClick={() => router.push('/setup')}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+                Create Restaurant Profile
+            </button>
+        </div>
+    );
 
     return (
         <div className="p-4 space-y-6">

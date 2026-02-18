@@ -12,24 +12,37 @@ export const SocketProvider = ({ children }) => {
     const { user } = useAuth();
 
     useEffect(() => {
-        if (user) {
-            const newSocket = io('http://localhost:5000', {
-                withCredentials: true,
-            });
+        let newSocket;
+        const initSocket = async () => {
+            if (user) {
+                const { data: { session } } = await import('@/config/supabase').then(m => m.supabase.auth.getSession());
+                const token = session?.access_token;
 
-            newSocket.on('connect', () => {
-                console.log('Socket connected:', newSocket.id);
-                // Join restaurant room if needed. 
-                // Typically backend joins socket to room based on auth user id or we emit 'join'.
-                // Backend socketHandler.js: socket.join(`user:${userId}`) is common.
-                // Let's assume standard behavior or emit a join event if needed.
-                newSocket.emit('join', { userId: user.id, role: 'restaurant' });
-            });
+                if (token) {
+                    newSocket = io('http://localhost:5000', {
+                        auth: { token },
+                        withCredentials: true,
+                    });
 
-            setSocket(newSocket);
+                    newSocket.on('connect', () => {
+                        console.log('Socket connected:', newSocket.id);
+                        newSocket.emit('restaurant:join', user.id); // Updated to match backend handler
+                    });
 
-            return () => newSocket.disconnect();
-        }
+                    newSocket.on('connect_error', (err) => {
+                        console.error('Socket connection error:', err.message);
+                    });
+
+                    setSocket(newSocket);
+                }
+            }
+        };
+
+        initSocket();
+
+        return () => {
+            if (newSocket) newSocket.disconnect();
+        };
     }, [user]);
 
     return (

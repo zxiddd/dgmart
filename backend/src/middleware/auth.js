@@ -20,6 +20,8 @@ const authenticate = async (req, res, next) => {
         // Verify JWT using Supabase Auth
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
+        console.log('Auth Check:', { token_prefix: token.substring(0, 10), user_id: user?.id, error: error?.message });
+
         if (error || !user) {
             return res.status(401).json({
                 success: false,

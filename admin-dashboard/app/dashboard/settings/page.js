@@ -1,10 +1,166 @@
+'use client';
+import { useState, useEffect } from 'react';
+import api from '@/lib/api';
+import toast from 'react-hot-toast';
+import { Save, Truck, DollarSign } from 'lucide-react';
+
 export default function SettingsPage() {
+    const [settings, setSettings] = useState({
+        rider_fee_per_order: 0,
+        platform_fee_percentage: 0,
+        delivery_fee_base: 0,
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const fetchSettings = async () => {
+        try {
+            const res = await api.get('/admin/settings');
+            if (res.data.success) {
+                setSettings(prev => ({ ...prev, ...res.data.data.settings }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch settings:', error);
+            toast.error('Failed to load settings');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await api.put('/admin/settings', settings);
+            toast.success('Settings saved successfully');
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            toast.error('Failed to save settings');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) return <div className="p-8 text-center">Loading settings...</div>;
+
     return (
-        <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-6">Settings</h1>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <p className="text-gray-500">Platform settings interface coming soon.</p>
-            </div>
+        <div className="max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-800 mb-6">Platform Settings</h1>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Delivery Settings Card */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                        <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+                            <Truck size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Delivery Configuration</h2>
+                            <p className="text-sm text-gray-500">Manage rider earnings and delivery fees</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Rider Earnings per Order (₹)
+                            </label>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={settings.rider_fee_per_order}
+                                    onChange={(e) => setSettings({ ...settings, rider_fee_per_order: parseFloat(e.target.value) || 0 })}
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Fixed amount paid to rider for each completed delivery.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Base Delivery Fee to Customer (₹)
+                            </label>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={settings.delivery_fee_base}
+                                    onChange={(e) => setSettings({ ...settings, delivery_fee_base: parseFloat(e.target.value) || 0 })}
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Default delivery fee charged if no zone logic applies.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Platform Fees Card */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                            <DollarSign size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Commission & Fees</h2>
+                            <p className="text-sm text-gray-500">Manage platform revenue settings</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Platform Commission (%)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={settings.platform_fee_percentage}
+                                onChange={(e) => setSettings({ ...settings, platform_fee_percentage: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Percentage deducted from restaurant order value.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Tax / GST Percentage (%)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={settings.tax_percentage || 0}
+                                onChange={(e) => setSettings({ ...settings, tax_percentage: parseFloat(e.target.value) || 0 })}
+                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Tax applied to order subtotal.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-70 font-medium shadow-sm shadow-orange-200"
+                    >
+                        {saving ? 'Saving...' : (
+                            <>
+                                <Save size={20} />
+                                Save Changes
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }

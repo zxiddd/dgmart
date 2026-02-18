@@ -1,7 +1,9 @@
 'use client';
 import { useState, useRef } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
-import api from '@/lib/api';
+import { supabase } from '@/config/supabase';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://172.20.10.2:5000';
 
 export default function ImageUpload({ value, onChange, folder = 'uploads', label = 'Image' }) {
     const [uploading, setUploading] = useState(false);
@@ -11,7 +13,6 @@ export default function ImageUpload({ value, onChange, folder = 'uploads', label
         const file = e.target.files[0];
         if (!file) return;
 
-        // Basic validation
         if (!file.type.startsWith('image/')) {
             alert('Please upload an image file');
             return;
@@ -23,23 +24,43 @@ export default function ImageUpload({ value, onChange, folder = 'uploads', label
         }
 
         setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('folder', folder);
 
         try {
-            const res = await api.post('/upload', formData, {
+            // Get auth token from Supabase session
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            if (!token) {
+                throw new Error('Not authenticated. Please log in again.');
+            }
+
+            // Build FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', folder);
+
+            // Use native fetch — avoids axios Content-Type header conflicts
+            const response = await fetch(`${BACKEND_URL}/api/upload`, {
+                method: 'POST',
                 headers: {
-                    'Content-Type': 'multipart/form-data',
+                    // Do NOT set Content-Type — browser sets it with correct multipart boundary
+                    'Authorization': `Bearer ${token}`,
                 },
+                body: formData,
             });
 
-            if (res.data.success) {
-                onChange(res.data.data.url);
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `Upload failed with status ${response.status}`);
             }
+
+            console.log('Upload success, URL:', result.data.url);
+            onChange(result.data.url);
+
         } catch (error) {
             console.error('Upload failed:', error);
-            alert('Upload failed. Please try again.');
+            alert('Upload failed: ' + (error.message || 'Please try again.'));
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -83,7 +104,7 @@ export default function ImageUpload({ value, onChange, folder = 'uploads', label
                         </>
                     ) : (
                         <>
-                            <div className="p-3 bg-gray-50 rounded-full group-hover:bg-white transition-colors">
+                            <div className="p-3 bg-gray-50 rounded-full">
                                 <Upload size={24} />
                             </div>
                             <span className="text-sm font-medium">Click to upload image</span>

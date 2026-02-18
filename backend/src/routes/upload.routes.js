@@ -10,7 +10,12 @@ const { upload, uploadToFirebase } = require('../services/uploadService');
  */
 router.post('/', authenticate, upload.single('file'), async (req, res, next) => {
     try {
+        console.log('Upload Request Headers:', req.headers['content-type']);
+        console.log('Upload Request Body (Keys):', Object.keys(req.body));
+        console.log('Upload Request File:', req.file ? 'Present' : 'Missing');
+
         if (!req.file) {
+            console.error('Upload Error: No file provided in request.');
             return res.status(400).json({ success: false, message: 'No file provided.' });
         }
 

@@ -33,7 +33,8 @@ const addressSchema = Joi.object({
     full_address: Joi.string().min(5).max(500).required(),
     lat: Joi.number().min(-90).max(90).required(),
     lng: Joi.number().min(-180).max(180).required(),
-    landmark: Joi.string().max(200).optional(),
+    landmark: Joi.string().max(200).allow('').optional(),
+
     is_default: Joi.boolean().default(false),
 });
 

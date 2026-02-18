@@ -18,13 +18,13 @@ module.exports = {
         apiKey: process.env.GOOGLE_MAPS_API_KEY,
     },
     cors: {
-        allowedOrigins: [
-            process.env.USER_APP_URL || 'http://localhost:8081',
-            process.env.ADMIN_DASHBOARD_URL || 'http://localhost:3000',
-            process.env.RESTAURANT_APP_URL || 'http://localhost:3003',
-            process.env.DELIVERY_APP_URL || 'http://localhost:3002',
-            'http://172.20.10.2:8081',
-            '*'
+        allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [
+            'http://localhost:3000',
+            'http://localhost:3001',
+            'http://localhost:3002',
+            'http://localhost:3003',
+            'http://localhost:8081',
+            'http://172.20.10.2:8081'
         ],
     },
     databaseUrl: process.env.DATABASE_URL,

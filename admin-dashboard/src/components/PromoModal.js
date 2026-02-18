@@ -47,6 +47,9 @@ export default function PromoModal({ isOpen, onClose, onPromoSaved, initialData 
         e.preventDefault();
         setLoading(true);
         try {
+            const validUntilDate = new Date(formData.valid_until);
+            validUntilDate.setHours(23, 59, 59, 999);
+
             const payload = {
                 ...formData,
                 value: parseFloat(formData.value) || 0,
@@ -54,7 +57,7 @@ export default function PromoModal({ isOpen, onClose, onPromoSaved, initialData 
                 max_discount: parseFloat(formData.max_discount) || 0,
                 usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : 0,
                 valid_from: new Date(formData.valid_from).toISOString(),
-                valid_until: new Date(formData.valid_until).toISOString(),
+                valid_until: validUntilDate.toISOString(),
             };
 
             const res = initialData

@@ -78,7 +78,7 @@ export default function RestaurantDetailsModal({ isOpen, onClose, restaurant }) 
                                 <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
                                     <span className="text-gray-500 text-sm flex items-center gap-2"><Globe size={14} /> Coordinates</span>
                                     <span className="text-gray-800 font-medium font-mono text-xs cursor-help" title={`Lat: ${restaurant.lat}, Lng: ${restaurant.lng}`}>
-                                        {restaurant.lat?.toFixed(4)}, {restaurant.lng?.toFixed(4)}
+                                        {Number(restaurant.lat || 0).toFixed(4)}, {Number(restaurant.lng || 0).toFixed(4)}
                                     </span>
                                 </div>
                             </div>
