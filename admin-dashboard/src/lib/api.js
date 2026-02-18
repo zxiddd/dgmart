@@ -27,16 +27,20 @@ const getBaseURL = () => {
 
 const api = axios.create({
     baseURL: getBaseURL(),
-    timeout: 10000, // 10 seconds timeout
+    timeout: 30000, // 30 seconds (allows for Render cold starts)
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
 api.interceptors.request.use(async (config) => {
+    console.log('📡 Sending request to:', config.url);
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
         config.headers.Authorization = `Bearer ${session.access_token}`;
+        console.log('🔑 JWT Token attached');
+    } else {
+        console.warn('⚠️ No active session found');
     }
     return config;
 });

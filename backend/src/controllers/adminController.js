@@ -8,43 +8,50 @@ const supabase = require('../config/supabase'); // If exists, for auth managemen
  */
 const getDashboard = async (req, res, next) => {
     try {
-        // Today Stats
-        const todayStats = await db.query(`
-            SELECT 
-                COUNT(*) as orders,
-                COALESCE(SUM(total), 0) as revenue,
-                COUNT(DISTINCT user_id) as new_users -- Proxied by order users? Or fetch from users table created_at?
-            FROM orders 
-            WHERE placed_at >= CURRENT_DATE
-        `);
-
-        // Total Counts
-        const userCount = await db.query('SELECT COUNT(*) FROM users');
-        const restCount = await db.query('SELECT COUNT(*) FROM restaurants');
-        const partnerCount = await db.query('SELECT COUNT(*) FROM delivery_partners');
-
-        // Pending
-        const pendingRest = await db.query("SELECT COUNT(*) FROM restaurants WHERE status = 'pending_approval'");
-        const pendingPartner = await db.query("SELECT COUNT(*) FROM delivery_partners WHERE is_verified = false");
-
-        // Monthly Revenue
-        const monthStats = await db.query(`
-            SELECT COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders 
-            FROM orders 
-            WHERE status = 'delivered' AND delivered_at >= NOW() - INTERVAL '30 days'
-        `);
-
-        // Chart Data (Last 7 Days)
-        const chartData = await db.query(`
-            SELECT 
-                to_char(date_trunc('day', d)::date, 'YYYY-MM-DD') as date,
-                COALESCE(SUM(o.total), 0) as revenue,
-                COUNT(o.id) as orders
-            FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day'::interval) d
-            LEFT JOIN orders o ON date_trunc('day', o.delivered_at) = d AND o.status = 'delivered'
-            GROUP BY 1
-            ORDER BY 1
-        `);
+        const [
+            todayStats,
+            userCount,
+            restCount,
+            partnerCount,
+            pendingRest,
+            pendingPartner,
+            monthStats,
+            chartData
+        ] = await Promise.all([
+            // Today Stats
+            db.query(`
+                SELECT 
+                    COUNT(*) as orders,
+                    COALESCE(SUM(total), 0) as revenue,
+                    COUNT(DISTINCT user_id) as new_users
+                FROM orders 
+                WHERE placed_at >= CURRENT_DATE
+            `),
+            // Total Counts
+            db.query('SELECT COUNT(*) FROM users'),
+            db.query('SELECT COUNT(*) FROM restaurants'),
+            db.query('SELECT COUNT(*) FROM delivery_partners'),
+            // Pending
+            db.query("SELECT COUNT(*) FROM restaurants WHERE status = 'pending_approval'"),
+            db.query("SELECT COUNT(*) FROM delivery_partners WHERE is_verified = false"),
+            // Monthly Revenue
+            db.query(`
+                SELECT COALESCE(SUM(total), 0) as revenue, COUNT(*) as orders 
+                FROM orders 
+                WHERE status = 'delivered' AND delivered_at >= NOW() - INTERVAL '30 days'
+            `),
+            // Chart Data (Last 7 Days)
+            db.query(`
+                SELECT 
+                    to_char(date_trunc('day', d)::date, 'YYYY-MM-DD') as date,
+                    COALESCE(SUM(o.total), 0) as revenue,
+                    COUNT(o.id) as orders
+                FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day'::interval) d
+                LEFT JOIN orders o ON date_trunc('day', o.delivered_at) = d AND o.status = 'delivered'
+                GROUP BY 1
+                ORDER BY 1
+            `)
+        ]);
 
         res.json({
             success: true,
@@ -52,7 +59,7 @@ const getDashboard = async (req, res, next) => {
                 today: {
                     orders: parseInt(todayStats.rows[0].orders),
                     revenue: parseFloat(todayStats.rows[0].revenue),
-                    new_users: 0 // Placeholder or separate query
+                    new_users: 0
                 },
                 totals: {
                     users: parseInt(userCount.rows[0].count),
