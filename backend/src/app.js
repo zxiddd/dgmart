@@ -110,6 +110,16 @@ app.use('/api/auth/', authLimiter);
 
 // ============ ROUTES ============
 
+// Root route
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: '🍔 Degloor Mart API is Live!',
+        health: '/api/health',
+        documentation: 'https://github.com/zxiddd/dgmart'
+    });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({
