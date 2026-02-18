@@ -16,27 +16,44 @@ export default function LoginPage() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+        e.preventDefault();
         setError('');
+
+        // 🚨 Critical Config Check
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_API_URL) {
+            setError('🔴 Vercel Environment Variables missing! Please add NEXT_PUBLIC_API_URL and Supabase keys to Vercel Dashboard.');
+            console.error('Missing Env Vars:', {
+                api: process.env.NEXT_PUBLIC_API_URL,
+                sb: process.env.NEXT_PUBLIC_SUPABASE_URL
+            });
+            return;
+        }
+
         setLoading(true);
+        console.log('🏁 Starting login process...');
         try {
+            console.log('🔑 Attempting Supabase Auth...');
             await login(email, password);
+            console.log('✅ Supabase Auth SUCCESS!');
+
             try {
-                console.log('Verifying admin privileges at:', api.defaults.baseURL);
-                await api.get('/admin/dashboard');
+                console.log('🛰️ Verifying admin privileges at:', api.defaults.baseURL);
+                const response = await api.get('/admin/dashboard');
+                console.log('👑 Admin verification SUCCESS:', response.data);
                 router.push('/dashboard');
             } catch (roleError) {
-                console.error('Role Verification Error:', roleError);
+                console.error('❌ Role Verification Error:', roleError);
                 if (roleError.response?.status === 403 || roleError.response?.status === 401) {
                     await supabase.auth.signOut();
                     setError('Access denied: You do not have admin privileges.');
                 } else if (!roleError.response) {
-                    setError(`Network Error: Cannot connect to server at ${api.defaults.baseURL}. Please ensure the backend is running.`);
+                    setError(`Network Error: Cannot connect to server at ${api.defaults.baseURL}.`);
                 } else {
                     setError(`Error: ${roleError.response?.data?.message || 'Verification failed'}`);
                 }
             }
         } catch (err) {
-            console.error('Login Error:', err);
+            console.error('❌ Login Error:', err);
             setError(err.message || 'Invalid email or password');
         } finally {
             setLoading(false);
