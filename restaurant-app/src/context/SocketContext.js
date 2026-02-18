@@ -12,6 +12,7 @@ export const SocketProvider = ({ children }) => {
     const { user } = useAuth();
 
     useEffect(() => {
+<<<<<<< HEAD
         let newSocket;
         const initSocket = async () => {
             if (user) {
@@ -23,6 +24,20 @@ export const SocketProvider = ({ children }) => {
                         auth: { token },
                         withCredentials: true,
                     });
+=======
+        if (user) {
+            // Get backend URL from environment variable, removing '/api' suffix if present
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+            
+            const newSocket = io(backendUrl, {
+                withCredentials: true,
+            });
+
+            newSocket.on('connect', () => {
+                console.log('Socket connected:', newSocket.id);
+                newSocket.emit('join', { userId: user.id, role: 'restaurant' });
+            });
+>>>>>>> 3bd9c2b546401d9cb689939f433135a0ba877c54
 
                     newSocket.on('connect', () => {
                         console.log('Socket connected:', newSocket.id);

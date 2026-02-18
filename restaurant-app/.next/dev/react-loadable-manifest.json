@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\web-socket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts": {
     "id": "node_modules\\next\\dist\\client\\dev\\hot-reloader\\app\\web-socket.js -> @vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts",
@@ -10,3 +11,6 @@
     "files": []
   }
 }
+=======
+{}
+>>>>>>> 3bd9c2b546401d9cb689939f433135a0ba877c54

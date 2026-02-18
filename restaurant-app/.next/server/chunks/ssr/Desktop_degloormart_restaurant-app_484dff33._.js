@@ -1,3 +1,0 @@
-module.exports=[48634,a=>{a.n(a.i(55048))},30117,a=>{a.n(a.i(94147))},43021,a=>{a.n(a.i(44822))},2373,a=>{a.n(a.i(30278))},30348,a=>{a.n(a.i(79182))},39978,a=>{a.n(a.i(41685))},10067,a=>{"use strict";var b=a.i(99578);function c(){return(0,b.jsxs)("div",{className:"p-4",children:[(0,b.jsx)("h1",{className:"text-2xl font-bold text-gray-900 mb-6",children:"Settings"}),(0,b.jsxs)("div",{className:"bg-white p-6 rounded-xl shadow-sm border border-gray-100",children:[(0,b.jsx)("p",{className:"text-gray-500",children:"Restaurant settings coming soon."}),(0,b.jsx)("p",{className:"text-xs text-gray-400 mt-2",children:"Manage timing, delivery radius, banking details."})]})]})}a.s(["default",()=>c])}];
-
-//# sourceMappingURL=Desktop_degloormart_restaurant-app_484dff33._.js.map

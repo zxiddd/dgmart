@@ -1,4 +1,4 @@
-// File: C:\Users\mohammed zaiduddin\Desktop\degloormart\delivery-app\app\layout.js
+// File: /app/delivery-app/app/layout.js
 import * as entry from '../../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

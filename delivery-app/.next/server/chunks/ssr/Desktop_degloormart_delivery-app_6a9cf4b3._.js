@@ -1,3 +1,0 @@
-module.exports=[93605,a=>{a.n(a.i(56439))},70260,a=>{a.n(a.i(86328))},1856,a=>{a.n(a.i(15636))},35761,a=>{a.n(a.i(77893))},62271,a=>{a.n(a.i(36895))},60505,a=>{a.n(a.i(10271))},59337,a=>{"use strict";var b=a.i(59434);function c(){return(0,b.jsxs)("div",{className:"p-4",children:[(0,b.jsx)("h1",{className:"text-2xl font-bold text-gray-900 mb-6",children:"Settings"}),(0,b.jsx)("div",{className:"bg-white p-6 rounded-xl shadow-sm border border-gray-100",children:(0,b.jsx)("p",{className:"text-gray-500",children:"App settings coming soon."})})]})}a.s(["default",()=>c])}];
-
-//# sourceMappingURL=Desktop_degloormart_delivery-app_6a9cf4b3._.js.map

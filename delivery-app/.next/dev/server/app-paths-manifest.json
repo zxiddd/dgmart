@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "/page": "app/page.js",
   "/dashboard/page": "app/dashboard/page.js",
@@ -5,3 +6,6 @@
   "/dashboard/history/page": "app/dashboard/history/page.js",
   "/dashboard/earnings/page": "app/dashboard/earnings/page.js"
 }
+=======
+{}
+>>>>>>> 3bd9c2b546401d9cb689939f433135a0ba877c54

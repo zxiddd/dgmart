@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DegloorMart - Mobile App Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .preview-container {
+            max-width: 1400px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .phones-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .phone-mockup {
+            position: relative;
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        .phone-frame {
+            background: #1a1a1a;
+            border-radius: 45px;
+            padding: 15px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background: #1a1a1a;
+            border-radius: 0 0 15px 15px;
+            z-index: 10;
+        }
+
+        .phone-screen {
+            background: white;
+            border-radius: 35px;
+            overflow: hidden;
+            position: relative;
+            height: 720px;
+        }
+
+        .screen-content {
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Home Screen */
+        .home-screen {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+            min-height: 100%;
+            padding: 60px 20px 20px;
+        }
+
+        .location-bar {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-bar {
+            background: white;
+            padding: 18px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-bar input {
+            border: none;
+            outline: none;
+            flex: 1;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .category {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .category-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .section-title {
+            color: white;
+            font-size: 24px;
+            font-weight: 800;
+            margin: 25px 0 15px;
+        }
+
+        .restaurant-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .restaurant-image {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            display: flex;
+            align-items: center;
+            justify-center;
+            color: white;
+            font-size: 48px;
+        }
+
+        .restaurant-info {
+            padding: 15px;
+        }
+
+        .restaurant-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .restaurant-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .restaurant-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .restaurant-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #f0f0f0;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            border-radius: 0 0 35px 35px;
+        }
+
+        .nav-item {
+            text-align: center;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #999;
+        }
+
+        .nav-item.active .nav-icon {
+            color: #FF6B6B;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: #999;
+            font-weight: 600;
+        }
+
+        .nav-item.active .nav-label {
+            color: #FF6B6B;
+        }
+
+        .screen-label {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .phone-mockup {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .phone-mockup:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .phone-mockup:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <div class="header">
+            <h1>🍔 DegloorMart Mobile App</h1>
+            <p>Beautiful, Fast & User-Friendly Food Delivery Experience</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- Phone 1: Home Screen -->
+            <div class="phone-mockup">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-screen">
+                        <div class="screen-content">
+                            <div class="home-screen">
+                                <div class="location-bar">
+                                    <span>📍</span>
+                                    <div style="flex: 1;">
+                                        <div style="font-size: 12px; opacity: 0.8;">Deliver to</div>
+                                        <div style="font-weight: 700;">Main Road, Degloor</div>
+                                    </div>
+                                    <span style="font-size: 20px;">▼</span>
+                                </div>
+
+                                <div class="search-bar">
+                                    <span style="font-size: 20px;">🔍</span>
+                                    <input type="text" placeholder="Search for restaurants or dishes...">
+                                </div>
+
+                                <div class="categories">
+                                    <div class="category">
+                                        <div class="category-icon">🍕</div>
+                                        <div class="category-name">Pizza</div>
+                                    </div>
+                                    <div class="category">
+                                        <div class="category-icon">🍔</div>
+                                        <div class="category-name">Burgers</div>
+                                    </div>
+                                    <div class="category">
+                                        <div class="category-icon">🍜</div>
+                                        <div class="category-name">Biryani</div>
+                                    </div>
+                                    <div class="category">
+                                        <div class="category-icon">🍰</div>
+                                        <div class="category-name">Desserts</div>
+                                    </div>
+                                </div>
+
+                                <div class="section-title">Popular Near You</div>
+
+                                <div class="restaurant-card">
+                                    <div class="restaurant-image">🍛</div>
+                                    <div class="restaurant-info">
+                                        <div class="restaurant-name">Biryani Palace</div>
+                                        <div class="restaurant-meta">
+                                            <span>⭐ 4.5</span>
+                                            <span>• 25 mins</span>
+                                            <span>• ₹149 for one</span>
+                                        </div>
+                                        <div class="restaurant-tags">
+                                            <span class="tag">Biryani</span>
+                                            <span class="tag">North Indian</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="restaurant-card">
+                                    <div class="restaurant-image" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">🍕</div>
+                                    <div class="restaurant-info">
+                                        <div class="restaurant-name">Pizza Corner</div>
+                                        <div class="restaurant-meta">
+                                            <span>⭐ 4.2</span>
+                                            <span>• 30 mins</span>
+                                            <span>• ₹200 for one</span>
+                                        </div>
+                                        <div class="restaurant-tags">
+                                            <span class="tag">Italian</span>
+                                            <span class="tag">Fast Food</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="height: 80px;"></div>
+                            </div>
+
+                            <div class="bottom-nav">
+                                <div class="nav-item active">
+                                    <div class="nav-icon">🏠</div>
+                                    <div class="nav-label">Home</div>
+                                </div>
+                                <div class="nav-item">
+                                    <div class="nav-icon">🔍</div>
+                                    <div class="nav-label">Search</div>
+                                </div>
+                                <div class="nav-item">
+                                    <div class="nav-icon">🛒</div>
+                                    <div class="nav-label">Cart</div>
+                                </div>
+                                <div class="nav-item">
+                                    <div class="nav-icon">👤</div>
+                                    <div class="nav-label">Profile</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="screen-label">Home Screen</div>
+            </div>
+
+            <!-- Phone 2: Restaurant Detail -->
+            <div class="phone-mockup">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-screen">
+                        <div class="screen-content" style="background: white;">
+                            <div style="position: relative;">
+                                <div style="width: 100%; height: 250px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); display: flex; align-items: center; justify-center; font-size: 64px;">🍛</div>
+                                <div style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-center; font-size: 20px; cursor: pointer;">←</div>
+                            </div>
+                            
+                            <div style="padding: 20px;">
+                                <h2 style="font-size: 28px; font-weight: 800; color: #333; margin-bottom: 10px;">Biryani Palace</h2>
+                                <div style="display: flex; align-items: center; gap: 15px; color: #666; margin-bottom: 15px;">
+                                    <span style="background: #4CAF50; color: white; padding: 5px 12px; border-radius: 8px; font-weight: 700; font-size: 14px;">⭐ 4.5</span>
+                                    <span>25 mins</span>
+                                    <span>₹149 for one</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                                    <span style="background: #f0f0f0; padding: 6px 14px; border-radius: 20px; font-size: 13px;">Biryani</span>
+                                    <span style="background: #f0f0f0; padding: 6px 14px; border-radius: 20px; font-size: 13px;">North Indian</span>
+                                </div>
+
+                                <div style="background: #FFF9E6; border-left: 4px solid #FFD700; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                                    <div style="font-weight: 700; color: #D97706; margin-bottom: 5px;">🎉 Offer Available</div>
+                                    <div style="font-size: 14px; color: #666;">Get 20% OFF on orders above ₹299</div>
+                                </div>
+
+                                <h3 style="font-size: 20px; font-weight: 700; margin: 25px 0 15px;">Menu</h3>
+
+                                <div style="background: white; border: 2px solid #f0f0f0; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                                                <span style="color: #22C55E; font-size: 14px;">🟢</span>
+                                                <div style="font-weight: 700; font-size: 16px;">Chicken Biryani</div>
+                                            </div>
+                                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">Aromatic basmati rice with tender chicken</div>
+                                            <div style="font-weight: 700; color: #333; font-size: 18px;">₹199</div>
+                                        </div>
+                                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; display: flex; align-items: center; justify-center; font-size: 32px; position: relative;">
+                                            🍗
+                                            <button style="position: absolute; bottom: -10px; background: white; border: 2px solid #FF6B6B; color: #FF6B6B; padding: 5px 15px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;">ADD</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="background: white; border: 2px solid #f0f0f0; border-radius: 15px; padding: 15px; margin-bottom: 15px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                                                <span style="color: #EF4444; font-size: 14px;">🔴</span>
+                                                <div style="font-weight: 700; font-size: 16px;">Mutton Biryani</div>
+                                            </div>
+                                            <div style="color: #666; font-size: 14px; margin-bottom: 8px;">Special mutton pieces with spices</div>
+                                            <div style="font-weight: 700; color: #333; font-size: 18px;">₹299</div>
+                                        </div>
+                                        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); border-radius: 12px; display: flex; align-items: center; justify-center; font-size: 32px; position: relative;">
+                                            🥘
+                                            <button style="position: absolute; bottom: -10px; background: white; border: 2px solid #FF6B6B; color: #FF6B6B; padding: 5px 15px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer;">ADD</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="height: 80px;"></div>
+                            </div>
+
+                            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e0e0e0; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 35px 35px;">
+                                <div>
+                                    <div style="font-size: 12px; color: #666;">2 items</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #333;">₹498</div>
+                                </div>
+                                <button style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 15px 40px; border-radius: 12px; border: none; font-weight: 700; font-size: 16px; cursor: pointer; box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);">View Cart</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="screen-label">Restaurant & Menu</div>
+            </div>
+
+            <!-- Phone 3: Order Tracking -->
+            <div class="phone-mockup">
+                <div class="phone-frame">
+                    <div class="phone-notch"></div>
+                    <div class="phone-screen">
+                        <div class="screen-content" style="background: #f8f9fa;">
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 20px 40px; color: white;">
+                                <div style="font-size: 16px; opacity: 0.9; margin-bottom: 5px;">Order #12345</div>
+                                <h2 style="font-size: 28px; font-weight: 800; margin-bottom: 15px;">On the way! 🏍️</h2>
+                                <div style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 15px; border-radius: 15px;">
+                                    <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Estimated Delivery</div>
+                                    <div style="font-size: 24px; font-weight: 800;">15 minutes</div>
+                                </div>
+                            </div>
+
+                            <div style="padding: 20px;">
+                                <div style="background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                                    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #333;">Order Status</h3>
+                                    
+                                    <div style="position: relative; padding-left: 40px;">
+                                        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #4CAF50 0%, #4CAF50 33%, #2196F3 33%, #2196F3 66%, #e0e0e0 66%, #e0e0e0 100%);"></div>
+                                        
+                                        <div style="margin-bottom: 30px; position: relative;">
+                                            <div style="position: absolute; left: -46px; top: 0; width: 20px; height: 20px; background: #4CAF50; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 2px #4CAF50;"></div>
+                                            <div style="font-weight: 700; color: #333; margin-bottom: 3px;">Order Confirmed</div>
+                                            <div style="font-size: 13px; color: #666;">12:30 PM</div>
+                                        </div>
+
+                                        <div style="margin-bottom: 30px; position: relative;">
+                                            <div style="position: absolute; left: -46px; top: 0; width: 20px; height: 20px; background: #2196F3; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 2px #2196F3;"></div>
+                                            <div style="font-weight: 700; color: #333; margin-bottom: 3px;">Out for Delivery</div>
+                                            <div style="font-size: 13px; color: #666;">12:45 PM</div>
+                                        </div>
+
+                                        <div style="margin-bottom: 10px; position: relative; opacity: 0.5;">
+                                            <div style="position: absolute; left: -46px; top: 0; width: 20px; height: 20px; background: #e0e0e0; border-radius: 50%; border: 3px solid white;"></div>
+                                            <div style="font-weight: 700; color: #333; margin-bottom: 3px;">Delivered</div>
+                                            <div style="font-size: 13px; color: #666;">Expected at 1:00 PM</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="background: white; border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                                    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 15px; color: #333;">Delivery Partner</h3>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-center; color: white; font-size: 28px;">👨</div>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: 700; font-size: 16px; color: #333; margin-bottom: 3px;">Rahul Kumar</div>
+                                            <div style="font-size: 14px; color: #666;">⭐ 4.8 (256 deliveries)</div>
+                                        </div>
+                                        <button style="background: #4CAF50; color: white; width: 45px; height: 45px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-center;">📞</button>
+                                    </div>
+                                </div>
+
+                                <div style="background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                                    <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 15px; color: #333;">Order Summary</h3>
+                                    <div style="margin-bottom: 12px;">
+                                        <div style="display: flex; justify-content: space-between; color: #666; margin-bottom: 8px;">
+                                            <span>Chicken Biryani x1</span>
+                                            <span>₹199</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; color: #666; margin-bottom: 8px;">
+                                            <span>Mutton Biryani x1</span>
+                                            <span>₹299</span>
+                                        </div>
+                                    </div>
+                                    <div style="border-top: 1px dashed #e0e0e0; padding-top: 12px; margin-top: 12px;">
+                                        <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 18px; color: #333;">
+                                            <span>Total</span>
+                                            <span style="color: #4CAF50;">₹498</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="height: 20px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="screen-label">Order Tracking</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
