@@ -52,10 +52,14 @@ app.use((req, res, next) => {
 
 
 
-// ============ MIDDLEWARE ============
-
 // Security headers
 app.use(helmet());
+
+// Global Request Logger for Debugging
+app.use((req, res, next) => {
+    console.log(`📡 [DEBUG] ${req.method} ${req.originalUrl}`);
+    next();
+});
 
 // CORS
 app.use(cors({
