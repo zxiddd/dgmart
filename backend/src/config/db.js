@@ -1,14 +1,25 @@
 const { Pool } = require('pg');
 const config = require('./env');
 
+console.log('🐘 Initializing PostgreSQL Pool...');
 const pool = new Pool({
     connectionString: config.databaseUrl,
-    max: 20, // Increase pool size for parallel admin queries
-    connectionTimeoutMillis: 5000, // Fail fast if DB is slow (5s)
+    max: 20,
+    connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
     ssl: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: false, // Bypass self-signed cert issues on Render
     },
+});
+
+// Diagnostic check on connection
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('❌ Database Connection Failed:', err.message);
+    } else {
+        console.log('✅ Database Connection Verified');
+        release();
+    }
 });
 
 pool.on('error', (err) => {

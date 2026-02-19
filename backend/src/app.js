@@ -31,6 +31,9 @@ const bannerRoutes = require('./routes/banner.routes');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy (Required for express-rate-limit on Render/Vercel)
+app.set('trust proxy', 1);
+
 // Initialize Socket.io
 const io = new Server(server, {
     cors: {
@@ -50,14 +53,12 @@ app.use((req, res, next) => {
     next();
 });
 
-
-
 // Security headers
 app.use(helmet());
 
 // Global Request Logger for Debugging
 app.use((req, res, next) => {
-    console.log(`📡 [DEBUG] ${req.method} ${req.originalUrl}`);
+    console.log(`📡 [DEBUG] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
     next();
 });
 
