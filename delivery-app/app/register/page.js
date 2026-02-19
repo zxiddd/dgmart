@@ -10,17 +10,6 @@ import toast from 'react-hot-toast';
 export default function RegisterPage() {
     const router = useRouter();
     const { user, signUp, login, loading: authLoading } = useAuth();
-    const [loading, setLoading] = useState(false);
-
-    // Auto-redirect if already logged in
-    useEffect(() => {
-        if (!authLoading && user) {
-            // Only redirect if they haven't just signed up (we want to show success first)
-            // Actually, for "simple", just redirecting is better.
-            router.push('/dashboard');
-        }
-    }, [user, authLoading, router]);
-
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -30,13 +19,22 @@ export default function RegisterPage() {
         vehicle_number: '',
     });
 
+    const [submitting, setSubmitting] = useState(false);
+
+    // Auto-redirect if already logged in (but not while we are submitting registration)
+    useEffect(() => {
+        if (!authLoading && user && !submitting) {
+            router.push('/dashboard');
+        }
+    }, [user, authLoading, router, submitting]);
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setSubmitting(true);
         const toastId = toast.loading('Creating your account...');
 
         try {
@@ -92,13 +90,13 @@ export default function RegisterPage() {
             }
 
             toast.success('Ready to ride! 🚀', { id: toastId });
+            setSubmitting(false); // Stop block
             router.push('/dashboard');
         } catch (error) {
             console.error('Registration Error:', error);
             const msg = error.response?.data?.message || error.message || 'Registration failed';
             toast.error(msg, { id: toastId });
-        } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
@@ -195,10 +193,10 @@ export default function RegisterPage() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={submitting}
                         className="w-full bg-primary text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-orange-500/20 active:scale-[0.98] transition-all disabled:opacity-50 mt-6"
                     >
-                        {loading ? 'Processing...' : 'Complete Registration'}
+                        {submitting ? 'Processing...' : 'Complete Registration'}
                     </button>
 
                     <p className="text-center text-gray-500 font-medium mt-6">
