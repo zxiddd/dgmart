@@ -18,11 +18,11 @@ const authenticate = async (req, res, next) => {
         const token = authHeader.split('Bearer ')[1];
 
         // Verify JWT using Supabase Auth
+        console.log('📡 [TRACE] Verifying Supabase token...');
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
-        console.log('Auth Check:', { token_prefix: token.substring(0, 10), user_id: user?.id, error: error?.message });
-
         if (error || !user) {
+            console.warn('❌ [TRACE] Supabase Auth Error:', error?.message || 'No user found');
             return res.status(401).json({
                 success: false,
                 message: 'Invalid or expired token.',
@@ -30,10 +30,11 @@ const authenticate = async (req, res, next) => {
         }
 
         // Get user profile from our public.users table
+        console.log('📡 [TRACE] Fetching user profile from DB for:', user.id);
         const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [user.id]);
 
         if (rows.length === 0) {
-            console.log('User profile not found. Creating new profile for:', user.id);
+            console.log('⚠️ [TRACE] User profile not found in DB. Creating new profile...');
 
             // Auto-create user profile
             const newUserRes = await db.query(
@@ -61,7 +62,7 @@ const authenticate = async (req, res, next) => {
             }
         }
 
-        console.log('Auth success: User:', rows[0].email, 'Role:', rows[0].role);
+        console.log('✅ [TRACE] Auth success. User:', rows[0].email, 'Role:', rows[0].role);
 
         req.user = {
             uid: user.id, // Keep 'uid' for compatibility if needed, but 'id' is standard

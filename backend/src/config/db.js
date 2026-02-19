@@ -3,6 +3,9 @@ const config = require('./env');
 
 const pool = new Pool({
     connectionString: config.databaseUrl,
+    max: 20, // Increase pool size for parallel admin queries
+    connectionTimeoutMillis: 5000, // Fail fast if DB is slow (5s)
+    idleTimeoutMillis: 30000,
     ssl: {
         rejectUnauthorized: false,
     },

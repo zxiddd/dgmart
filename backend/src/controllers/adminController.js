@@ -8,6 +8,7 @@ const supabase = require('../config/supabase'); // If exists, for auth managemen
  */
 const getDashboard = async (req, res, next) => {
     try {
+        console.log('📊 [TRACE] Calculating Dashboard stats for Admin:', req.user.email);
         const [
             todayStats,
             userCount,
