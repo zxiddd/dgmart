@@ -30,16 +30,17 @@ export default function LoginPage() {
         }
 
         setLoading(true);
-        console.log('🏁 Starting login process...');
+        console.log('🏁 Starting login process (v3 - 60s Timeout)...');
         try {
             console.log('🔑 Attempting Supabase Auth...');
             await login(email, password);
             console.log('✅ Supabase Auth SUCCESS!');
 
             try {
-                console.log('🛰️ Verifying admin privileges at:', api.defaults.baseURL);
-                const response = await api.get('/admin/dashboard');
-                console.log('👑 Admin verification SUCCESS:', response.data);
+                console.log('🛰️ Verifying admin privileges (v3) at:', api.defaults.baseURL);
+                // Force a long timeout specifically for this call
+                const response = await api.get('/admin/dashboard', { timeout: 60000 });
+                console.log('👑 Admin verification SUCCESS (v3):', response.data);
                 router.push('/dashboard');
             } catch (roleError) {
                 console.error('❌ Role Verification Error:', roleError);
