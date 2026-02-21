@@ -2,8 +2,9 @@ import { View, Text, FlatList, StyleSheet, TouchableOpacity, Image, StatusBar, A
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS, ORDER_STATUS_CONFIG } from '../../src/config/theme';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { orderAPI } from '../../src/services/api';
+import { subscribeToOrder } from '../../src/services/socketService';
 import { useFocusEffect } from 'expo-router';
 
 export default function OrdersScreen() {
@@ -11,24 +12,38 @@ export default function OrdersScreen() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const socketCleanups = useRef([]);
 
     const fetchOrders = async () => {
         try {
             const res = await orderAPI.list();
             if (res.success) {
-                // Map backend status to frontend status if needed, or ensure they match
-                // Backend: placed, confirmed, preparing, ready, delivered, cancelled
-                // Frontend config handles these.
                 const formattedOrders = res.data.orders.map(order => ({
                     id: order.id,
                     restaurant_name: order.restaurant_name,
-                    items: order.items || [], // Backend now sends ["Item (Qty)"]
+                    items: order.items || [],
                     total: parseFloat(order.total),
                     status: order.status,
                     date: new Date(order.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                    rating: 0, // Not verified yet
+                    rating: 0,
                 }));
                 setOrders(formattedOrders);
+
+                // Subscribe to socket updates for each active order
+                socketCleanups.current.forEach(fn => fn());
+                socketCleanups.current = [];
+
+                const activeOrders = formattedOrders.filter(o =>
+                    !['delivered', 'cancelled', 'refunded'].includes(o.status)
+                );
+                for (const order of activeOrders) {
+                    const cleanup = await subscribeToOrder(order.id, (update) => {
+                        setOrders(prev => prev.map(o =>
+                            o.id === order.id ? { ...o, status: update.status } : o
+                        ));
+                    });
+                    socketCleanups.current.push(cleanup);
+                }
             }
         } catch (error) {
             console.log('Error fetching orders:', error);
@@ -41,11 +56,17 @@ export default function OrdersScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchOrders();
-            // Poll for updates while screen is focused
-            const interval = setInterval(fetchOrders, 10000);
-            return () => clearInterval(interval);
+            // Keep light polling as fallback (every 30s instead of 10s since socket handles it)
+            const interval = setInterval(fetchOrders, 30000);
+            return () => {
+                clearInterval(interval);
+                // Cleanup all socket subscriptions on blur
+                socketCleanups.current.forEach(fn => fn());
+                socketCleanups.current = [];
+            };
         }, [])
     );
+
 
     const handleCancel = (orderId) => {
         Alert.alert(

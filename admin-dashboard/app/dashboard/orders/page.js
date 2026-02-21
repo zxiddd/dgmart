@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useSocket } from '@/context/SocketContext';
 
 export default function OrderPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { socket } = useSocket();
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -25,6 +27,36 @@ export default function OrderPage() {
     useEffect(() => {
         fetchOrders();
     }, []);
+
+    // Real-time socket listeners
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleNewOrder = (order) => {
+            toast('🛍️ New Order Received!', {
+                icon: '🔔',
+                style: { background: '#1a1a2e', color: '#fff', fontWeight: 'bold' },
+                duration: 5000,
+            });
+            setOrders(prev => [order, ...prev]);
+        };
+
+        const handleStatusUpdate = (update) => {
+            setOrders(prev => prev.map(o =>
+                o.id === update.id
+                    ? { ...o, status: update.status, updated_at: update.updated_at }
+                    : o
+            ));
+        };
+
+        socket.on('new_order', handleNewOrder);
+        socket.on('order_status_updated', handleStatusUpdate);
+
+        return () => {
+            socket.off('new_order', handleNewOrder);
+            socket.off('order_status_updated', handleStatusUpdate);
+        };
+    }, [socket]);
 
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);

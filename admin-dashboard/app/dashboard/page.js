@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSocket } from '@/context/SocketContext';
 import api from '@/lib/api';
 import { DollarSign, ShoppingBag, Users, Store } from 'lucide-react';
 import { Bar, Doughnut } from 'react-chartjs-2';
@@ -44,6 +45,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => (
 
 export default function Dashboard() {
     const { user } = useAuth();
+    const { socket } = useSocket();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -56,8 +58,6 @@ export default function Dashboard() {
                 }
             } catch (error) {
                 console.error('Error fetching stats:', error);
-                // Fallback to zeros/empty if failed, or show error?
-                // For now, keep loading false to show something or empty state
             } finally {
                 setLoading(false);
             }
@@ -65,6 +65,19 @@ export default function Dashboard() {
 
         if (user) fetchStats();
     }, [user]);
+
+    // Live order count bump
+    useEffect(() => {
+        if (!socket) return;
+        const onNewOrder = () => {
+            setStats(prev => prev ? {
+                ...prev,
+                today: { ...prev.today, orders: (prev.today?.orders || 0) + 1 }
+            } : prev);
+        };
+        socket.on('new_order', onNewOrder);
+        return () => socket.off('new_order', onNewOrder);
+    }, [socket]);
 
     if (loading) return <div className="p-10 text-center">Loading stats...</div>;
     if (!stats) return <div className="p-10 text-center">Failed to load stats.</div>;

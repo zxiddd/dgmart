@@ -208,6 +208,31 @@ const createOrder = async (req, res, next) => {
 
         createNotification(userId, 'Order Placed', `Order ${order.order_number} placed.`, 'order_update', { order_id: order.id });
 
+        // Emit socket events so restaurant & admin see this INSTANTLY
+        const io = global.io;
+        if (io) {
+            const newOrderPayload = {
+                id: order.id,
+                order_number: order.order_number,
+                status: order.status,
+                total: order.total,
+                subtotal: order.subtotal,
+                delivery_fee: order.delivery_fee,
+                payment_method: order.payment_method,
+                delivery_address: order.delivery_address,
+                special_instructions: order.special_instructions,
+                created_at: order.placed_at || new Date().toISOString(),
+                items: orderItems.map(i => ({ name: i.item_name, quantity: i.quantity })),
+            };
+            // Notify restaurant dashboard
+            io.to(`restaurant:${restaurant_id}`).emit('new_order', newOrderPayload);
+            // Notify all admins
+            io.to('role:admin').emit('new_order', newOrderPayload);
+            io.to('admin:dashboard').emit('new_order', newOrderPayload);
+            // Subscribe the user to their order room so they get future updates
+            io.to(`user:${userId}`).emit('order_placed', { order_id: order.id });
+        }
+
         res.status(201).json({
             success: true,
             message: 'Order placed.',

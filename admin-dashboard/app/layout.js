@@ -1,4 +1,5 @@
 import { AuthProvider } from '@/context/AuthContext';
+import { SocketProvider } from '@/context/SocketContext';
 import './globals.css';
 import { Inter } from 'next/font/google';
 
@@ -13,7 +14,11 @@ export default function RootLayout({ children }) {
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={inter.className}>
-                <AuthProvider>{children}</AuthProvider>
+                <AuthProvider>
+                    <SocketProvider>
+                        {children}
+                    </SocketProvider>
+                </AuthProvider>
             </body>
         </html>
     );

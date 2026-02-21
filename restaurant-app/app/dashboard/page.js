@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSocket } from '@/context/SocketContext';
 import { Power, ShoppingBag, DollarSign, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const { socket } = useSocket();
     const router = useRouter();
     const [restaurant, setRestaurant] = useState(null);
     const [stats, setStats] = useState(null);
@@ -38,6 +40,23 @@ export default function DashboardPage() {
         };
         fetchData();
     }, []);
+
+    // Live bump: new order received
+    useEffect(() => {
+        if (!socket) return;
+        const onNewOrder = () => {
+            setStats(prev => prev ? {
+                ...prev,
+                today: {
+                    ...prev.today,
+                    total_orders: (prev.today?.total_orders || 0) + 1,
+                    pending_orders: (prev.today?.pending_orders || 0) + 1,
+                },
+            } : prev);
+        };
+        socket.on('new_order', onNewOrder);
+        return () => socket.off('new_order', onNewOrder);
+    }, [socket]);
 
     const toggleStatus = async () => {
         if (!restaurant) return;
