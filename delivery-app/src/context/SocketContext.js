@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/config/supabase';
 
 const SocketContext = createContext(null);
 
@@ -12,23 +13,42 @@ export const SocketProvider = ({ children }) => {
     const { user } = useAuth();
 
     useEffect(() => {
-        if (user) {
-            // Get backend URL from environment variable, removing '/api' suffix if present
-            const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-            
-            const newSocket = io(backendUrl, {
-                withCredentials: true,
-            });
+        let newSocket;
+        const initSocket = async () => {
+            if (user) {
+                // Get session for token
+                const { data: { session } } = await supabase.auth.getSession();
+                const token = session?.access_token;
 
-            newSocket.on('connect', () => {
-                console.log('Socket connected:', newSocket.id);
-                newSocket.emit('join', { userId: user.id, role: 'delivery' });
-            });
+                if (token) {
+                    // Get backend URL from environment variable, removing '/api' suffix if present
+                    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
 
-            setSocket(newSocket);
+                    newSocket = io(backendUrl, {
+                        auth: { token },
+                        transports: ['websocket'],
+                        withCredentials: true,
+                    });
 
-            return () => newSocket.disconnect();
-        }
+                    newSocket.on('connect', () => {
+                        console.log('Socket connected:', newSocket.id);
+                        newSocket.emit('join', { userId: user.id, role: 'delivery' });
+                    });
+
+                    newSocket.on('connect_error', (err) => {
+                        console.error('Socket connection error:', err.message);
+                    });
+
+                    setSocket(newSocket);
+                }
+            }
+        };
+
+        initSocket();
+
+        return () => {
+            if (newSocket) newSocket.disconnect();
+        };
     }, [user]);
 
     return (
