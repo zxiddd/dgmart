@@ -15,6 +15,8 @@ export default function DashboardPage() {
     const [stats, setStats] = useState({ earnings: 0, count: 0, today: 0 });
     const [activeAssignment, setActiveAssignment] = useState(null);
     const [history, setHistory] = useState([]);
+    const [deliveryOtp, setDeliveryOtp] = useState('');
+    const [showOtpInput, setShowOtpInput] = useState(false);
     const router = useRouter();
 
     const fetchData = useCallback(async () => {
@@ -92,6 +94,16 @@ export default function DashboardPage() {
             if (status === 'accepted') {
                 await api.put(`/delivery/orders/${activeAssignment.id}/respond`, { action: 'accept' });
                 toast.success('Order Accepted!');
+            } else if (status === 'delivered') {
+                if (!deliveryOtp || deliveryOtp.length < 4) {
+                    setShowOtpInput(true);
+                    toast.error('Please enter the 4-digit verification code from customer');
+                    return;
+                }
+                await api.put(`/delivery/orders/${activeAssignment.id}/status`, { status, otp: deliveryOtp });
+                toast.success('Order Delivered Successfully!');
+                setDeliveryOtp('');
+                setShowOtpInput(false);
             } else {
                 await api.put(`/delivery/orders/${activeAssignment.id}/status`, { status });
                 toast.success(`Order ${status.replace('_', ' ')}!`);
@@ -168,6 +180,14 @@ export default function DashboardPage() {
                                     <p className="text-sm font-medium text-gray-800 line-clamp-2">{activeAssignment.order_details.delivery_address}</p>
                                 </div>
                             </div>
+
+                            <div className="flex gap-3">
+                                <Navigation size={18} className="text-blue-500 flex-shrink-0 mt-1" />
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold text-gray-400">Customer Contact</p>
+                                    <p className="text-sm font-medium text-gray-800">{activeAssignment.order_details.customer_phone || 'Not provided'}</p>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-2">
@@ -182,9 +202,42 @@ export default function DashboardPage() {
                                 </button>
                             )}
                             {activeAssignment.status === 'picked_up' && (
-                                <button onClick={() => updateStatus('delivered')} className="col-span-2 bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200">
-                                    Confirm Delivery
-                                </button>
+                                <div className="col-span-2 space-y-3">
+                                    {showOtpInput ? (
+                                        <div className="space-y-2 animate-in slide-in-from-bottom-2">
+                                            <p className="text-xs font-bold text-gray-500 uppercase">Enter Verification Code (OTP)</p>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    maxLength={4}
+                                                    placeholder="4-digit code"
+                                                    value={deliveryOtp}
+                                                    onChange={(e) => setDeliveryOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                                                    className="flex-1 bg-gray-50 border-2 border-green-200 rounded-xl px-4 py-3 font-bold text-lg text-center tracking-[0.5em] focus:border-green-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => updateStatus('delivered')}
+                                                className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 transition-all hover:bg-green-700"
+                                            >
+                                                Verify & Complete
+                                            </button>
+                                            <button
+                                                onClick={() => setShowOtpInput(false)}
+                                                className="w-full text-xs font-bold text-gray-400 py-1"
+                                            >
+                                                Hide
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowOtpInput(true)}
+                                            className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200"
+                                        >
+                                            Confirm Delivery (OTP)
+                                        </button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>

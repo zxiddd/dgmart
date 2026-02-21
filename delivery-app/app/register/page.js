@@ -21,12 +21,8 @@ export default function RegisterPage() {
 
     const [submitting, setSubmitting] = useState(false);
 
-    // Auto-redirect if already logged in (but not while we are submitting registration)
-    useEffect(() => {
-        if (!authLoading && user && !submitting) {
-            router.push('/dashboard');
-        }
-    }, [user, authLoading, router, submitting]);
+    // Note: Removed automatic redirect to dashboard if user exists.
+    // This allows existing users who are missing a partner profile to complete registration.
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

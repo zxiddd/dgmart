@@ -20,7 +20,8 @@ export const SocketProvider = ({ children }) => {
 
                 if (token) {
                     // Get backend URL from environment variable, removing '/api' suffix if present
-                    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://172.20.10.2:5000';
+                    let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dgmart-plr3.onrender.com/api';
+                    backendUrl = backendUrl.replace(/\/api\/?$/, '');
 
                     newSocket = io(backendUrl, {
                         auth: { token },

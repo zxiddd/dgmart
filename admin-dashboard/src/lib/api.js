@@ -9,40 +9,52 @@ const getBaseURL = () => {
         if (hostname === 'localhost') {
             url = 'http://localhost:5000/api';
         } else {
-            url = 'http://172.20.10.2:5000/api';
+            // Render environment should always have NEXT_PUBLIC_API_URL
+            console.warn('⚠️ NEXT_PUBLIC_API_URL is missing in browser! Falling back to healthy health check URL.');
+            url = 'https://dgmart-plr3.onrender.com/api';
         }
     }
 
     if (url) {
-        // Remove trailing slash and ensure /api suffix
         url = url.replace(/\/$/, '');
         if (!url.endsWith('/api')) {
             url = `${url}/api`;
         }
-        return url;
+        return `${url}/`;
     }
 
-    return 'http://localhost:5000/api';
+    return 'https://dgmart-plr3.onrender.com/api/';
 };
 
 const api = axios.create({
     baseURL: getBaseURL(),
-    timeout: 30000, // 30 seconds (allows for Render cold starts)
+    timeout: 60000, // 60 seconds (conservative for Render cold starts)
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
 api.interceptors.request.use(async (config) => {
-    console.log('📡 Sending request to:', config.url);
+    console.log('📡 [API] Sending request to:', config.url);
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) {
         config.headers.Authorization = `Bearer ${session.access_token}`;
-        console.log('🔑 JWT Token attached');
-    } else {
-        console.warn('⚠️ No active session found');
     }
     return config;
 });
+
+// Response interceptor to handle session timeouts
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            console.warn('🚪 Admin Session Expired. Redirecting to login...');
+            supabase.auth.signOut().then(() => {
+                if (typeof window !== 'undefined') window.location.href = '/';
+            });
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default api;

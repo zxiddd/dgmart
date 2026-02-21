@@ -42,8 +42,25 @@ const createOrder = async (req, res, next) => {
     try {
         await client.query('BEGIN');
 
-        const { restaurant_id, address_id, items, payment_method, promo_code, tip, special_instructions } = req.body;
+        const { restaurant_id, address_id, items, payment_method, promo_code, tip, special_instructions, phone } = req.body;
         const userId = req.user.id;
+
+        // Fetch user phone if not in request
+        let customerPhone = phone;
+        const userRes = await client.query('SELECT phone FROM users WHERE id = $1', [userId]);
+        if (!customerPhone && userRes.rows.length > 0) {
+            customerPhone = userRes.rows[0].phone;
+        }
+
+        if (!customerPhone) throw new Error('Phone number is required to place an order.');
+
+        // Update user phone if it was provided and different
+        if (phone && phone !== userRes.rows[0].phone) {
+            await client.query('UPDATE users SET phone = $1 WHERE id = $2', [phone, userId]);
+        }
+
+        // Generate 4-digit OTP
+        const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
         // Validate restaurant
         const restRes = await client.query('SELECT * FROM restaurants WHERE id = $1', [restaurant_id]);
@@ -149,10 +166,17 @@ const createOrder = async (req, res, next) => {
                 status, subtotal, delivery_fee, tax, discount, tip, total,
                 payment_method, payment_status, special_instructions,
                 delivery_address, delivery_lat, delivery_lng, estimated_delivery_mins, distance_km,
+                delivery_otp, customer_phone,
                 placed_at 
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()) RETURNING *
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW()) RETURNING *
         `;
-        const values = [generateOrderNumber(), userId, restaurant_id, address_id, promoId, ORDER_STATUS.PLACED, subtotal, deliveryFee, tax, discount, tipAmount, total, payment_method, payment_method === PAYMENT_METHOD.COD ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PENDING, special_instructions, address.full_address, address.lat, address.lng, estimatedTime, distance];
+        const values = [
+            generateOrderNumber(), userId, restaurant_id, address_id, promoId,
+            ORDER_STATUS.PLACED, subtotal, deliveryFee, tax, discount, tipAmount, total,
+            payment_method, payment_method === PAYMENT_METHOD.COD ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PENDING,
+            special_instructions, address.full_address, address.lat, address.lng, estimatedTime, distance,
+            deliveryOtp, customerPhone
+        ];
 
         const orderRes = await client.query(orderQuery, values);
         const order = orderRes.rows[0];
@@ -280,6 +304,17 @@ const updateOrderStatus = async (req, res, next) => {
             await client.query('UPDATE users SET total_orders = COALESCE(total_orders, 0) + 1 WHERE id = $1', [order.user_id]); // If added col
         }
 
+        if (status === 'cancelled' || status === 'rejected') {
+            updates += `, cancelled_at = NOW()`;
+            // Handle Refund if paid
+            if (order.payment_status === 'completed') {
+                await client.query('UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2', [order.total, order.user_id]);
+                await client.query("INSERT INTO wallet_transactions (user_id, type, amount, description, reference_type, reference_id) VALUES ($1, 'credit', $2, $3, 'refund', $4)",
+                    [order.user_id, order.total, `Refund for ${status} order ${order.order_number}`, id]);
+                await client.query("UPDATE orders SET payment_status = 'refunded' WHERE id = $1", [id]);
+            }
+        }
+
         await client.query(`UPDATE orders SET ${updates} WHERE id = $2`, [status, id]);
 
         if (status === 'ready') await assignDeliveryPartner(id, order, client);
@@ -290,14 +325,17 @@ const updateOrderStatus = async (req, res, next) => {
         // Emit socket event
         const io = global.io;
         if (io) {
-            io.to(`order:${id}`).emit('order_update', {
+            const payload = {
                 order_id: id,
+                id: id,
                 status: status,
                 updated_at: new Date().toISOString()
-            });
+            };
+            io.to(`order:${id}`).emit('order_update', payload);
+            io.to(`restaurant:${order.restaurant_id}`).emit('order_status_updated', payload);
+            io.to('admin:dashboard').emit('order_status_updated', payload);
         }
 
-        res.json({ success: true, message: 'Updated' });
         res.json({ success: true, message: 'Updated' });
     } catch (e) {
         logDebug(`Update Order Status Failed: ${e.message}`);
@@ -315,26 +353,61 @@ const cancelOrder = async (req, res, next) => {
         await client.query('BEGIN');
         const { id } = req.params;
         const { cancellation_reason } = req.body;
+        const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
         const resOrder = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
         if (resOrder.rows.length === 0) throw new Error('Order not found');
         const order = resOrder.rows[0];
 
-        if (order.user_id !== req.user.id) throw new Error('Not authorized');
-        if (!['placed', 'confirmed'].includes(order.status)) throw new Error('Cannot cancel now');
+        // Authorization: User can cancel their own, Admin can cancel any
+        if (order.user_id !== req.user.id && !isAdmin) throw new Error('Not authorized to cancel this order');
 
-        await client.query('UPDATE orders SET status = $1, cancelled_at = NOW(), cancellation_reason = $2 WHERE id = $3', ['cancelled', cancellation_reason || 'User cancelled', id]);
+        // Business Rule: Users can't cancel if already preparing/ready/delivered
+        if (!isAdmin && !['placed', 'confirmed'].includes(order.status)) {
+            throw new Error(`Cannot cancel order in ${order.status} state. Please contact support.`);
+        }
+
+        await client.query('UPDATE orders SET status = $1, cancelled_at = NOW(), cancellation_reason = $2 WHERE id = $3',
+            ['cancelled', cancellation_reason || (isAdmin ? 'Cancelled by Admin' : 'User cancelled'), id]);
 
         if (order.payment_status === 'completed') {
-            // Refund logic
+            // Refund logic to wallet
             await client.query('UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2', [order.total, order.user_id]);
-            await client.query("INSERT INTO wallet_transactions (user_id, type, amount, description, reference_type, reference_id) VALUES ($1, 'credit', $2, $3, 'refund', $4)", [order.user_id, order.total, `Refund for ${order.order_number}`, id]);
+            await client.query("INSERT INTO wallet_transactions (user_id, type, amount, description, reference_type, reference_id) VALUES ($1, 'credit', $2, $3, 'refund', $4)",
+                [order.user_id, order.total, `Refund for cancelled order ${order.order_number}`, id]);
             await client.query("UPDATE orders SET payment_status = 'refunded' WHERE id = $1", [id]);
         }
 
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Cancelled' });
-    } catch (e) { await client.query('ROLLBACK'); next(e); } finally { client.release(); }
+
+        // Real-time notifications
+        const io = global.io;
+        if (io) {
+            const updatePayload = {
+                order_id: id,
+                id: id, // For compatibility
+                status: 'cancelled',
+                cancellation_reason: cancellation_reason || 'Cancelled',
+                updated_at: new Date().toISOString()
+            };
+
+            // Notify User Room
+            io.to(`order:${id}`).emit('order_update', updatePayload);
+
+            // Notify Restaurant Dashboard
+            io.to(`restaurant:${order.restaurant_id}`).emit('order_status_updated', updatePayload);
+
+            // Notify Admin Dashboard
+            io.to('admin:dashboard').emit('order_status_updated', updatePayload);
+        }
+
+        res.json({ success: true, message: 'Order cancelled successfully' });
+    } catch (e) {
+        await client.query('ROLLBACK');
+        next(e);
+    } finally {
+        client.release();
+    }
 };
 
 const addReview = async (req, res, next) => {

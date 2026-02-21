@@ -28,7 +28,7 @@ export default function ImageUpload({ value, onChange, folder = 'uploads', label
         formData.append('folder', folder);
 
         try {
-            const res = await api.post('/upload', formData, {
+            const res = await api.post('upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

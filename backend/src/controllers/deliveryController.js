@@ -158,7 +158,7 @@ const updateDeliveryStatus = async (req, res, next) => {
     try {
         await client.query('BEGIN');
         const { assignmentId } = req.params;
-        const { status } = req.body;
+        const { status, otp } = req.body;
 
         const assignRes = await client.query('SELECT * FROM delivery_assignments WHERE id = $1', [assignmentId]);
         if (assignRes.rows.length === 0) throw new Error('Not found');
@@ -169,20 +169,22 @@ const updateDeliveryStatus = async (req, res, next) => {
             updates += ', picked_up_at = NOW()';
             await client.query("UPDATE orders SET status = 'picked_up', picked_up_at = NOW() WHERE id = $1", [assignment.order_id]);
         } else if (status === 'delivered') {
+            // Verify OTP
+            const orderRes = await client.query('SELECT delivery_otp FROM orders WHERE id = $1', [assignment.order_id]);
+            const savedOtp = orderRes.rows[0]?.delivery_otp;
+
+            if (savedOtp && savedOtp !== otp) {
+                throw new Error('Invalid OTP. Please ask the customer for the correct delivery code.');
+            }
+
             updates += ', delivered_at = NOW()';
             await client.query("UPDATE orders SET status = 'delivered', delivered_at = NOW(), payment_status = 'completed' WHERE id = $1", [assignment.order_id]);
 
             // Update Partner Stats
-            // Fetch earnings from order logic? Delivery fee is in assignment (added in auto assign?)
-            // I need to add delivery_fee to delivery_assignment schema/insert? 
-            // In orderController.assignDeliveryPartner (placeholder), I should put fee.
-            // Let's assume passed in request or fetched from order.
+            const feeRes = await client.query('SELECT delivery_fee FROM orders WHERE id = $1', [assignment.order_id]);
+            const fee = feeRes.rows[0]?.delivery_fee || 0;
 
-            // Fetch order delivery fee
-            const orderRes = await client.query('SELECT delivery_fee FROM orders WHERE id = $1', [assignment.order_id]);
-            const fee = orderRes.rows[0]?.delivery_fee || 0;
-
-            // Update partner table (users role or delivery_partners table?)
+            // Update partner table
             // delivery_partners table matches user_id = assignment.partner_id
             await client.query(`UPDATE delivery_partners SET total_deliveries = total_deliveries + 1, total_earnings = total_earnings + $1 WHERE user_id = $2`, [fee, assignment.partner_id]);
         }

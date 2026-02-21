@@ -37,14 +37,16 @@ export default function LoginPage() {
             console.log('✅ Supabase Auth SUCCESS!');
 
             try {
-                console.log('🛰️ Verifying admin privileges (v3) at:', api.defaults.baseURL);
+                console.log('🛰️ Verifying admin privileges at:', api.defaults.baseURL);
                 // Force a long timeout specifically for this call
                 const response = await api.get('/admin/dashboard', { timeout: 60000 });
-                console.log('👑 Admin verification SUCCESS (v3):', response.data);
+                console.log('👑 Admin verification SUCCESS:', response.data);
                 router.push('/dashboard');
             } catch (roleError) {
                 console.error('❌ Role Verification Error:', roleError);
-                if (roleError.response?.status === 403 || roleError.response?.status === 401) {
+                if (roleError.code === 'ECONNABORTED' || roleError.name === 'AbortError') {
+                    setError('The server is starting up (Render Cold Start). Please wait 30-60 seconds and try again.');
+                } else if (roleError.response?.status === 403 || roleError.response?.status === 401) {
                     await supabase.auth.signOut();
                     setError('Access denied: You do not have admin privileges.');
                 } else if (!roleError.response) {

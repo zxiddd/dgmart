@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function OrderPage() {
     const [orders, setOrders] = useState([]);
@@ -40,6 +41,25 @@ export default function OrderPage() {
     const handleViewDetails = (order) => {
         setSelectedOrder(order);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleCancelOrder = async (orderId) => {
+        if (!window.confirm('Are you sure you want to cancel this order as an administrator?')) return;
+
+        try {
+            const res = await api.post(`/orders/${orderId}/cancel`, {
+                cancellation_reason: 'Cancelled by administrator'
+            });
+
+            if (res.data.success) {
+                toast.success('Order cancelled and customer notified');
+                setIsDetailsModalOpen(false);
+                fetchOrders();
+            }
+        } catch (error) {
+            console.error('Cancellation failed:', error);
+            toast.error(error.response?.data?.message || 'Failed to cancel order');
+        }
     };
 
     return (
@@ -182,7 +202,15 @@ export default function OrderPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-6 border-t bg-gray-50 flex justify-end">
+                        <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                            {['placed', 'confirmed', 'preparing', 'ready', 'picked_up'].includes(selectedOrder.status) && (
+                                <button
+                                    onClick={() => handleCancelOrder(selectedOrder.id)}
+                                    className="px-6 py-2 bg-red-50 text-red-600 rounded-xl font-bold border border-red-100 hover:bg-red-100 transition-all active:scale-95 flex items-center gap-2"
+                                >
+                                    <Trash2 size={18} /> Cancel Order
+                                </button>
+                            )}
                             <button
                                 onClick={() => setIsDetailsModalOpen(false)}
                                 className="px-8 py-2 bg-gray-800 text-white rounded-xl font-bold hover:bg-black transition-all shadow-lg active:scale-95"
