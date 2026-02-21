@@ -11,7 +11,7 @@ const getBaseURL = () => {
         } else {
             // Render environment should always have NEXT_PUBLIC_API_URL
             console.warn('⚠️ NEXT_PUBLIC_API_URL is missing in browser! Falling back to healthy health check URL.');
-            url = 'https://dgmart-plr3.onrender.com/api';
+            url = 'http://76.13.246.9/api';
         }
     }
 
@@ -23,7 +23,7 @@ const getBaseURL = () => {
         return `${url}/`;
     }
 
-    return 'https://dgmart-plr3.onrender.com/api/';
+    return 'http://76.13.246.9/api/';
 };
 
 const api = axios.create({

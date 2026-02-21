@@ -51,7 +51,7 @@ export const SocketProvider = ({ children }) => {
             const token = session?.access_token;
             if (!token) return;
 
-            let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dgmart-plr3.onrender.com/api';
+            let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://76.13.246.9/api';
             backendUrl = backendUrl.replace(/\/api\/?$/, '');
 
             newSocket = io(backendUrl, {

@@ -1,7 +1,4 @@
 
-// 🚨 EMERGENCY SSL BYPASS (For Render -> Supabase connectivity issues)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
