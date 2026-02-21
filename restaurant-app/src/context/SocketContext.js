@@ -25,6 +25,7 @@ export const SocketProvider = ({ children }) => {
 
                     newSocket = io(backendUrl, {
                         auth: { token },
+                        transports: ['websocket'],
                         withCredentials: true,
                     });
 
