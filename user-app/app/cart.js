@@ -26,6 +26,13 @@ export default function CartScreen() {
     const [orderLoading, setOrderLoading] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('cod');
     const [previewData, setPreviewData] = useState(null);
+    const [phone, setPhone] = useState(profile?.phone || '');
+
+    useEffect(() => {
+        if (profile?.phone) {
+            setPhone(profile.phone);
+        }
+    }, [profile]);
 
     useEffect(() => {
         if (items.length > 0 && currentAddress) {
@@ -124,14 +131,6 @@ export default function CartScreen() {
             return;
         }
 
-        if (!profile?.phone) {
-            Alert.alert('Phone Required', 'A verified phone number is required for delivery. Please update your profile.', [
-                { text: 'Update Profile', onPress: () => router.push('/(tabs)/profile') },
-                { text: 'Cancel', style: 'cancel' }
-            ]);
-            return;
-        }
-
         if (items.length === 0) return;
 
         setOrderLoading(true);
@@ -140,6 +139,7 @@ export default function CartScreen() {
                 restaurant_id: restaurantId,
                 address_id: currentAddress.id,
                 payment_method: paymentMethod,
+                phone: profile?.phone || phone,
                 items: items.map(i => ({
                     item_id: i.id,
                     quantity: i.quantity,
@@ -292,6 +292,33 @@ export default function CartScreen() {
                         <Text style={styles.noAddressText}>Please select a delivery address</Text>
                     )}
                 </View>
+
+                {/* 2.5 Contact Details */}
+                {!profile?.phone && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <View style={styles.iconCircle}>
+                                <MaterialIcons name="phone" size={20} color={COLORS.primary} />
+                            </View>
+                            <Text style={styles.cardTitle}>Contact Number</Text>
+                        </View>
+                        <View style={styles.phoneInputContainer}>
+                            <Text style={styles.inputLabel}>Enter 10-digit Mobile Number</Text>
+                            <View style={styles.phoneInputWrapper}>
+                                <Text style={styles.phonePrefix}>+91</Text>
+                                <TextInput
+                                    style={styles.phoneInput}
+                                    placeholder="9876543210"
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                    value={phone}
+                                    onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                                />
+                            </View>
+                            <Text style={styles.phoneHint}>This will be saved to your profile for future orders.</Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* 3. Payment Method */}
                 <View style={styles.card}>

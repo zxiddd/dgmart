@@ -10,10 +10,6 @@ import Toast from 'react-native-toast-message';
 export default function AddAddressScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    const { fetchAddresses, addresses } = useAuthStore();
-    const [loading, setLoading] = useState(false);
-    const [fetchingZones, setFetchingZones] = useState(true);
-
     const [label, setLabel] = useState('Home');
     const [fullAddress, setFullAddress] = useState('');
     const [city, setCity] = useState('Degloor');
@@ -21,6 +17,8 @@ export default function AddAddressScreen() {
     const [zones, setZones] = useState([]);
     const [showZonePicker, setShowZonePicker] = useState(false);
 
+    const { profile, fetchAddresses, addresses } = useAuthStore();
+    const [phone, setPhone] = useState(profile?.phone || '');
     const [landmark, setLandmark] = useState('');
     const [isDefault, setIsDefault] = useState(true);
 
@@ -31,6 +29,7 @@ export default function AddAddressScreen() {
             if (addr) {
                 setFullAddress(addr.full_address.split(',')[0]); // Basic split, might need better logic
                 setLandmark(addr.landmark || '');
+                setPhone(addr.phone || profile?.phone || '');
                 setLabel(addr.label ? addr.label.charAt(0).toUpperCase() + addr.label.slice(1) : 'Home');
                 setIsDefault(addr.is_default);
             }
@@ -71,6 +70,7 @@ export default function AddAddressScreen() {
                 label: label.toLowerCase(),
                 full_address: `${fullAddress}, ${landmark ? landmark + ', ' : ''}${selectedZone.name}`,
                 landmark,
+                phone,
                 is_default: isDefault,
                 lat: 18.5492,
                 lng: 77.5746
@@ -136,6 +136,19 @@ export default function AddAddressScreen() {
                         value={landmark}
                         onChangeText={setLandmark}
                     />
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Contact Number for this address</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="10-digit mobile number"
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                        value={phone}
+                        onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                    />
+                    <Text style={{ fontSize: 11, color: COLORS.textLight, marginTop: 4 }}>This number will be used for delivery updates.</Text>
                 </View>
 
                 <View style={styles.inputGroup}>

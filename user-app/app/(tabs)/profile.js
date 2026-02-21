@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, StatusBar, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../src/config/theme';
@@ -14,7 +15,18 @@ const MENU_ITEMS = [
 
 export default function ProfileScreen() {
     const router = useRouter();
-    const { profile, signOut } = useAuthStore();
+    const { profile, signOut, updateProfile } = useAuthStore();
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editName, setEditName] = useState(profile?.name || '');
+    const [editPhone, setEditPhone] = useState(profile?.phone || '');
+    const [updating, setUpdating] = useState(false);
+
+    useEffect(() => {
+        if (profile) {
+            setEditName(profile.name || '');
+            setEditPhone(profile.phone || '');
+        }
+    }, [profile]);
 
     const handleSignOut = () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -28,6 +40,33 @@ export default function ProfileScreen() {
                 },
             },
         ]);
+    };
+
+    const handleUpdateProfile = async () => {
+        if (!editName.trim() || !editPhone.trim()) {
+            Alert.alert('Error', 'Name and Phone are required');
+            return;
+        }
+
+        if (editPhone.length !== 10) {
+            Alert.alert('Error', 'Phone number must be 10 digits');
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const res = await updateProfile({ name: editName, phone: editPhone });
+            if (res.success) {
+                Alert.alert('Success', 'Profile updated successfully');
+                setEditModalVisible(false);
+            } else {
+                Alert.alert('Error', res.message || 'Failed to update profile');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Something went wrong');
+        } finally {
+            setUpdating(false);
+        }
     };
 
     return (
@@ -48,7 +87,10 @@ export default function ProfileScreen() {
                 <Text style={styles.userPhone}>{profile?.phone || '+91 XXXXXXXXXX'}</Text>
                 {profile?.email && <Text style={styles.userEmail}>{profile.email}</Text>}
 
-                <TouchableOpacity style={styles.editProfileButton}>
+                <TouchableOpacity
+                    style={styles.editProfileButton}
+                    onPress={() => setEditModalVisible(true)}
+                >
                     <Text style={styles.editProfileText}>EDIT PROFILE</Text>
                     <MaterialIcons name="edit" size={14} color={COLORS.white} />
                 </TouchableOpacity>
@@ -103,6 +145,65 @@ export default function ProfileScreen() {
                 <Text style={styles.version}>Degloor Mart v1.0.0</Text>
                 <Text style={styles.madeWith}>Made with ❤️ for Degloor</Text>
             </View>
+
+            {/* Edit Profile Modal */}
+            <Modal
+                visible={editModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setEditModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.editModalContent}>
+                        <Text style={styles.modalTitle}>Update Profile</Text>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Full Name</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={editName}
+                                onChangeText={setEditName}
+                                placeholder="Enter your name"
+                            />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.inputLabel}>Phone Number</Text>
+                            <View style={styles.phoneInputWrapper}>
+                                <Text style={styles.phonePrefix}>+91</Text>
+                                <TextInput
+                                    style={styles.phoneInput}
+                                    value={editPhone}
+                                    onChangeText={(text) => setEditPhone(text.replace(/[^0-9]/g, ''))}
+                                    placeholder="10-digit number"
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => setEditModalVisible(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>CANCEL</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.saveButton]}
+                                onPress={handleUpdateProfile}
+                                disabled={updating}
+                            >
+                                {updating ? (
+                                    <ActivityIndicator size="small" color={COLORS.white} />
+                                ) : (
+                                    <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             <View style={{ height: 100 }} />
         </ScrollView>
@@ -219,7 +320,96 @@ const styles = StyleSheet.create({
     },
     signOutText: { fontSize: SIZES.md, fontFamily: FONTS.bold, color: COLORS.error },
 
-    footer: { alignItems: 'center', marginTop: 30 },
+    footer: { alignItems: 'center', marginTop: 30, paddingBottom: 20 },
     version: { fontSize: SIZES.xs, fontFamily: FONTS.regular, color: COLORS.textLight },
     madeWith: { fontSize: SIZES.xs, fontFamily: FONTS.bold, color: COLORS.textSecondary, marginTop: 4 },
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    editModalContent: {
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        padding: 24,
+        ...SHADOWS.lg,
+    },
+    modalTitle: {
+        fontSize: SIZES.lg,
+        fontFamily: FONTS.bold,
+        color: COLORS.textPrimary,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: SIZES.sm,
+        fontFamily: FONTS.medium,
+        color: COLORS.textSecondary,
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: COLORS.background,
+        borderRadius: 12,
+        padding: 12,
+        fontSize: SIZES.md,
+        fontFamily: FONTS.regular,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    phoneInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.background,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        paddingLeft: 12,
+    },
+    phonePrefix: {
+        fontSize: SIZES.md,
+        fontFamily: FONTS.semiBold,
+        color: COLORS.textSecondary,
+        marginRight: 8,
+    },
+    phoneInput: {
+        flex: 1,
+        padding: 12,
+        fontSize: SIZES.md,
+        fontFamily: FONTS.regular,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 10,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    cancelButton: {
+        backgroundColor: COLORS.background,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    saveButton: {
+        backgroundColor: COLORS.primary,
+    },
+    cancelButtonText: {
+        fontSize: SIZES.sm,
+        fontFamily: FONTS.bold,
+        color: COLORS.textSecondary,
+    },
+    saveButtonText: {
+        fontSize: SIZES.sm,
+        fontFamily: FONTS.bold,
+        color: COLORS.white,
+    },
 });

@@ -109,17 +109,17 @@ const getAddresses = async (req, res, next) => {
 
 const addAddress = async (req, res, next) => {
     try {
-        const { full_address, label, lat, lng, is_default } = req.body;
+        const { full_address, label, lat, lng, is_default, phone } = req.body;
 
         if (is_default) {
             await db.query('UPDATE addresses SET is_default = false WHERE user_id = $1', [req.user.id]);
         }
 
         const query = `
-            INSERT INTO addresses (user_id, full_address, label, lat, lng, is_default)
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
+            INSERT INTO addresses (user_id, full_address, label, lat, lng, is_default, phone)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
         `;
-        const { rows } = await db.query(query, [req.user.id, full_address, label, lat, lng, is_default || false]);
+        const { rows } = await db.query(query, [req.user.id, full_address, label, lat, lng, is_default || false, phone]);
 
         res.status(201).json({ success: true, message: 'Address added', data: { address: rows[0] } });
     } catch (error) {
@@ -130,7 +130,7 @@ const addAddress = async (req, res, next) => {
 const updateAddress = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { full_address, label, lat, lng, is_default } = req.body;
+        const { full_address, label, lat, lng, is_default, phone } = req.body;
 
         // Verify ownership
         const check = await db.query('SELECT user_id FROM addresses WHERE id = $1', [id]);
@@ -148,10 +148,11 @@ const updateAddress = async (req, res, next) => {
                 label = COALESCE($2, label), 
                 lat = COALESCE($3, lat), 
                 lng = COALESCE($4, lng), 
-                is_default = COALESCE($5, is_default)
-            WHERE id = $6 RETURNING *
+                is_default = COALESCE($5, is_default),
+                phone = COALESCE($6, phone)
+            WHERE id = $7 RETURNING *
         `;
-        const { rows } = await db.query(query, [full_address, label, lat, lng, is_default, id]);
+        const { rows } = await db.query(query, [full_address, label, lat, lng, is_default, phone, id]);
         res.json({ success: true, message: 'Address updated', data: { address: rows[0] } });
     } catch (error) {
         next(error);

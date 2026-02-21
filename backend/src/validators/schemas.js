@@ -34,7 +34,7 @@ const addressSchema = Joi.object({
     lat: Joi.number().min(-90).max(90).required(),
     lng: Joi.number().min(-180).max(180).required(),
     landmark: Joi.string().max(200).allow('').optional(),
-
+    phone: Joi.string().pattern(/^[0-9]{10}$/).allow('').optional(),
     is_default: Joi.boolean().default(false),
 });
 
