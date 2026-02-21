@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, Modal, FlatList } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../src/config/theme';
 import { userAPI } from '../src/services/api';
@@ -9,7 +9,8 @@ import Toast from 'react-native-toast-message';
 
 export default function AddAddressScreen() {
     const router = useRouter();
-    const { fetchAddresses } = useAuthStore();
+    const { id } = useLocalSearchParams();
+    const { fetchAddresses, addresses } = useAuthStore();
     const [loading, setLoading] = useState(false);
     const [fetchingZones, setFetchingZones] = useState(true);
 
@@ -25,7 +26,16 @@ export default function AddAddressScreen() {
 
     useEffect(() => {
         loadZones();
-    }, []);
+        if (id) {
+            const addr = addresses.find(a => a.id.toString() === id.toString());
+            if (addr) {
+                setFullAddress(addr.full_address.split(',')[0]); // Basic split, might need better logic
+                setLandmark(addr.landmark || '');
+                setLabel(addr.label ? addr.label.charAt(0).toUpperCase() + addr.label.slice(1) : 'Home');
+                setIsDefault(addr.is_default);
+            }
+        }
+    }, [id]);
 
     const loadZones = async () => {
         try {
@@ -57,18 +67,19 @@ export default function AddAddressScreen() {
 
         setLoading(true);
         try {
-            const res = await userAPI.addAddress({
+            const data = {
                 label: label.toLowerCase(),
                 full_address: `${fullAddress}, ${landmark ? landmark + ', ' : ''}${selectedZone.name}`,
                 landmark,
                 is_default: isDefault,
-                // Mock coords for now
                 lat: 18.5492,
                 lng: 77.5746
-            });
+            };
+
+            const res = id ? await userAPI.updateAddress(id, data) : await userAPI.addAddress(data);
 
             if (res.success) {
-                Toast.show({ type: 'success', text1: 'Address Saved' });
+                Toast.show({ type: 'success', text1: id ? 'Address Updated' : 'Address Saved' });
                 await fetchAddresses();
                 router.back();
             } else {
@@ -87,7 +98,7 @@ export default function AddAddressScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <MaterialIcons name="arrow-back" size={24} color={COLORS.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Add New Address</Text>
+                <Text style={styles.headerTitle}>{id ? 'Edit Address' : 'Add New Address'}</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.scroll}>
@@ -168,7 +179,7 @@ export default function AddAddressScreen() {
                     {loading ? (
                         <ActivityIndicator color={COLORS.white} />
                     ) : (
-                        <Text style={styles.saveBtnText}>SAVE ADDRESS</Text>
+                        <Text style={styles.saveBtnText}>{id ? 'UPDATE ADDRESS' : 'SAVE ADDRESS'}</Text>
                     )}
                 </TouchableOpacity>
             </View>

@@ -91,6 +91,7 @@ export default function RegisterScreen() {
                                 onChangeText={(text) => setForm({ ...form, phone: text.replace(/[^0-9]/g, '') })}
                             />
                         </View>
+                        <Text style={styles.phoneHint}>This number will be used for delivery updates and verification.</Text>
                     </View>
 
                     <TouchableOpacity
@@ -160,6 +161,13 @@ const styles = StyleSheet.create({
         fontSize: SIZES.base,
         fontFamily: FONTS.regular,
         color: COLORS.textPrimary,
+    },
+    phoneHint: {
+        fontSize: 11,
+        color: COLORS.textLight,
+        marginTop: 6,
+        fontStyle: 'italic',
+        marginLeft: 4,
     },
     button: {
         flexDirection: 'row',

@@ -126,8 +126,8 @@ export default function CartScreen() {
             return;
         }
 
-        if (isAddingPhone && (!phone || phone.length < 10)) {
-            Alert.alert('Phone Required', 'Please enter a valid 10-digit phone number for delivery updates.');
+        if (!profile?.phone && (!phone || phone.length < 10)) {
+            Alert.alert('Phone Required', 'A valid 10-digit phone number is mandatory for delivery.');
             return;
         }
 
@@ -139,7 +139,7 @@ export default function CartScreen() {
                 restaurant_id: restaurantId,
                 address_id: currentAddress.id,
                 payment_method: paymentMethod,
-                phone: phone, // Pass phone if it was just added
+                phone: profile?.phone || phone,
                 items: items.map(i => ({
                     item_id: i.id,
                     quantity: i.quantity,
@@ -300,7 +300,7 @@ export default function CartScreen() {
                             <MaterialIcons name="phone" size={20} color={COLORS.primary} />
                         </View>
                         <Text style={styles.cardTitle}>Contact Number</Text>
-                        {profile?.phone && (
+                        {!profile?.phone && (
                             <TouchableOpacity onPress={() => setIsAddingPhone(!isAddingPhone)} style={{ marginLeft: 'auto' }}>
                                 <Text style={styles.changeBtnText}>{isAddingPhone ? 'CANCEL' : 'CHANGE'}</Text>
                             </TouchableOpacity>

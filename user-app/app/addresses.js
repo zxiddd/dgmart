@@ -59,6 +59,12 @@ export default function AddressesScreen() {
                                 <Text style={styles.badgeText}>DEFAULT</Text>
                             </View>
                         )}
+                        <TouchableOpacity
+                            onPress={() => router.push(`/add-address?id=${item.id}`)}
+                            style={styles.editBtn}
+                        >
+                            <MaterialIcons name="edit" size={20} color={COLORS.primary} />
+                        </TouchableOpacity>
                         {currentAddress?.id === item.id && (
                             <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
                         )}
@@ -66,12 +72,14 @@ export default function AddressesScreen() {
                 )}
             />
 
-            <TouchableOpacity
-                style={styles.fab}
-                onPress={() => router.push('/add-address')}
-            >
-                <MaterialIcons name="add" size={24} color={COLORS.white} />
-            </TouchableOpacity>
+            {addresses.length === 0 && (
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => router.push('/add-address')}
+                >
+                    <MaterialIcons name="add" size={24} color={COLORS.white} />
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -90,6 +98,12 @@ const styles = StyleSheet.create({
     address: { fontSize: SIZES.sm, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 4 },
     badge: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.primaryLight + '40', borderRadius: 4, marginRight: 8 },
     badgeText: { fontSize: 10, fontFamily: FONTS.bold, color: COLORS.primaryDark },
+    editBtn: {
+        padding: 8,
+        marginRight: 8,
+        backgroundColor: COLORS.primaryLight + '15',
+        borderRadius: 8,
+    },
     fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', ...SHADOWS.gold },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
     emptyText: { fontSize: SIZES.md, color: COLORS.textSecondary, fontFamily: FONTS.medium },
