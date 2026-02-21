@@ -18,6 +18,8 @@ export default function AddAddressScreen() {
     const [showZonePicker, setShowZonePicker] = useState(false);
 
     const { profile, fetchAddresses, addresses } = useAuthStore();
+    const [loading, setLoading] = useState(false);
+    const [fetchingZones, setFetchingZones] = useState(true);
     const [phone, setPhone] = useState(profile?.phone || '');
     const [landmark, setLandmark] = useState('');
     const [isDefault, setIsDefault] = useState(true);

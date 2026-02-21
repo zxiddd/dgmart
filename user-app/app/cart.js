@@ -139,7 +139,7 @@ export default function CartScreen() {
                 restaurant_id: restaurantId,
                 address_id: currentAddress.id,
                 payment_method: paymentMethod,
-                phone: profile?.phone || phone,
+                phone: currentAddress?.phone || profile?.phone || phone,
                 items: items.map(i => ({
                     item_id: i.id,
                     quantity: i.quantity,
@@ -294,7 +294,7 @@ export default function CartScreen() {
                 </View>
 
                 {/* 2.5 Contact Details */}
-                {!profile?.phone && (
+                {(!profile?.phone && !currentAddress?.phone) && (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <View style={styles.iconCircle}>
