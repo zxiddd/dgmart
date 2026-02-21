@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "506245013488",
+        "project_id": "degloormart-cf942",
+        "storage_bucket": "degloormart-cf942.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:506245013488:android:68caaacdfee43a7c6f8735",
+                "android_client_info": {
+                    "package_name": "com.zaddy.degloormart"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyCQfEIGI3SQq4FptUxE40HnoUydjVUpokI"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}
