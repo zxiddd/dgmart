@@ -20,6 +20,7 @@ const adminLoginSchema = Joi.object({
 const updateProfileSchema = Joi.object({
     name: Joi.string().min(2).max(100).optional(),
     email: Joi.string().email().optional(),
+    phone: Joi.string().pattern(/^[0-9]{10}$/).allow('').optional(),
     avatar_url: Joi.string().uri().optional(),
     notification_preferences: Joi.object({
         orders: Joi.boolean().default(true),
@@ -130,6 +131,7 @@ const createOrderSchema = Joi.object({
         })
     ).min(1).required(),
     payment_method: Joi.string().valid('cod', 'razorpay', 'wallet').required(),
+    phone: Joi.string().pattern(/^[0-9]{10}$/).allow('').optional(),
     promo_code: Joi.string().optional(),
     tip: Joi.number().min(0).default(0),
     special_instructions: Joi.string().max(500).optional(),

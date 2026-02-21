@@ -134,12 +134,19 @@ export default function CartScreen() {
         if (items.length === 0) return;
 
         setOrderLoading(true);
+        const orderPhone = currentAddress?.phone || profile?.phone || phone;
+        if (!orderPhone || orderPhone.length < 10) {
+            setOrderLoading(false);
+            Alert.alert('Phone Number Required', 'Please enter a valid 10-digit phone number to place your order.');
+            return;
+        }
+
         try {
             const orderData = {
                 restaurant_id: restaurantId,
                 address_id: currentAddress.id,
                 payment_method: paymentMethod,
-                phone: currentAddress?.phone || profile?.phone || phone,
+                phone: orderPhone,
                 items: items.map(i => ({
                     item_id: i.id,
                     quantity: i.quantity,

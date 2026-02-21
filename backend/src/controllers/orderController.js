@@ -48,6 +48,7 @@ const createOrder = async (req, res, next) => {
         // Fetch user phone if not in request
         let customerPhone = phone;
         const userRes = await client.query('SELECT phone FROM users WHERE id = $1', [userId]);
+
         if (!customerPhone && userRes.rows.length > 0) {
             customerPhone = userRes.rows[0].phone;
         }
@@ -56,7 +57,6 @@ const createOrder = async (req, res, next) => {
             return res.status(400).json({
                 success: false,
                 message: 'Phone number is required to place an order.',
-                error_code: 'PHONE_REQUIRED'
             });
         }
 
