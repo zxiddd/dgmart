@@ -51,7 +51,7 @@ export const SocketProvider = ({ children }) => {
             const token = session?.access_token;
             if (!token) return;
 
-            let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://76.13.246.9/api';
+            let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.degloormart.in/api';
             backendUrl = backendUrl.replace(/\/api\/?$/, '');
 
             newSocket = io(backendUrl, {

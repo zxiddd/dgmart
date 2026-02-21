@@ -11,7 +11,7 @@ const getBaseURL = () => {
         } else {
             // Render environment should always have NEXT_PUBLIC_API_URL
             console.warn('⚠️ NEXT_PUBLIC_API_URL is missing in browser! Falling back to healthy health check URL.');
-            url = 'http://76.13.246.9/api';
+            url = 'https://api.degloormart.in/api';
         }
     }
 
@@ -23,7 +23,7 @@ const getBaseURL = () => {
         return `${url}/`;
     }
 
-    return 'http://76.13.246.9/api/';
+    return 'https://api.degloormart.in/api/';
 };
 
 const api = axios.create({

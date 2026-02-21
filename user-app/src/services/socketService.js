@@ -5,7 +5,7 @@
 import { io } from 'socket.io-client';
 import { supabase } from '../config/supabase';
 
-const BACKEND_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://76.13.246.9/api')
+const BACKEND_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://api.degloormart.in/api')
     .replace(/\/api\/?$/, '');
 
 let socket = null;
