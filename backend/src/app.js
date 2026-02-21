@@ -1,4 +1,4 @@
-console.log('🚀 API Boot sequence initiated...');
+
 // 🚨 EMERGENCY SSL BYPASS (For Render -> Supabase connectivity issues)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -59,11 +59,7 @@ app.use((req, res, next) => {
 // Security headers
 app.use(helmet());
 
-// Global Request Logger for Debugging
-app.use((req, res, next) => {
-    console.log(`📡 [DEBUG] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
-    next();
-});
+
 
 // CORS
 app.use(cors({
@@ -161,7 +157,7 @@ app.use(errorHandler);
 
 const PORT = config.port || process.env.PORT || 5000;
 
-console.log(`Checking PORT binding: ${PORT}`);
+
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`

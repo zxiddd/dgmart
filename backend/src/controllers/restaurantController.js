@@ -73,7 +73,9 @@ const listRestaurants = async (req, res, next) => {
             // Standard category/list query
             let query = `
                 SELECT 
-                    *,
+                    id, name, description, cuisine_type, image_url, banner_url, 
+                    rating, total_reviews, avg_prep_time_mins, delivery_radius_km, 
+                    min_order_amount, lat, lng, is_active, status,
                     'restaurant' as result_type,
                     id as restaurant_id,
                     name as restaurant_name

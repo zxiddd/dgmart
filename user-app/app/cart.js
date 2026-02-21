@@ -302,27 +302,27 @@ export default function CartScreen() {
 
                 {/* 2.5 Contact Details */}
                 {(!profile?.phone && !currentAddress?.phone) && (
-                    <View style={styles.card}>
+                    <View style={[styles.card, { borderColor: COLORS.primary, borderWidth: 1 }]}>
                         <View style={styles.cardHeader}>
-                            <View style={styles.iconCircle}>
-                                <MaterialIcons name="phone" size={20} color={COLORS.primary} />
+                            <View style={[styles.iconCircle, { backgroundColor: COLORS.primary }]}>
+                                <MaterialIcons name="phone" size={20} color={COLORS.white} />
                             </View>
-                            <Text style={styles.cardTitle}>Contact Number</Text>
+                            <Text style={[styles.cardTitle, { fontSize: 18 }]}>Your Phone Number</Text>
                         </View>
                         <View style={styles.phoneInputContainer}>
-                            <Text style={styles.inputLabel}>Enter 10-digit Mobile Number</Text>
-                            <View style={styles.phoneInputWrapper}>
-                                <Text style={styles.phonePrefix}>+91</Text>
+                            <Text style={[styles.inputLabel, { fontSize: 14, color: COLORS.textPrimary, marginBottom: 12 }]}>To call you for delivery:</Text>
+                            <View style={styles.simpleInputWrapper}>
+                                <Text style={styles.simplePrefix}>+91</Text>
                                 <TextInput
-                                    style={styles.phoneInput}
-                                    placeholder="9876543210"
+                                    style={styles.simpleInput}
+                                    placeholder="Enter 10 digits"
                                     keyboardType="phone-pad"
                                     maxLength={10}
                                     value={phone}
                                     onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
                                 />
                             </View>
-                            <Text style={styles.phoneHint}>This will be saved to your profile for future orders.</Text>
+                            <Text style={styles.phoneHint}>Safe & secure. Needed to find your home.</Text>
                         </View>
                     </View>
                 )}
@@ -482,8 +482,21 @@ const styles = StyleSheet.create({
     phoneInputWrapper: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingBottom: 8 },
     phonePrefix: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginRight: 8 },
     phoneInput: { flex: 1, fontSize: 16, fontFamily: FONTS.medium, color: COLORS.textPrimary, padding: 0 },
-    phoneHint: { fontSize: 11, color: COLORS.textLight, marginTop: 6, fontStyle: 'italic' },
+    phoneHint: { fontSize: 12, color: COLORS.textSecondary, marginTop: 8, fontStyle: 'italic' },
     phoneValue: { fontSize: 15, fontFamily: FONTS.semiBold, color: COLORS.textPrimary },
+
+    simpleInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0F0F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderWidth: 1,
+        borderColor: COLORS.primary + '30'
+    },
+    simplePrefix: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginRight: 12 },
+    simpleInput: { flex: 1, fontSize: 20, fontFamily: FONTS.bold, color: COLORS.textPrimary, padding: 0 },
 
     paymentOption: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 8 },
     selectedPayment: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight + '05' },

@@ -207,8 +207,21 @@ export default function HomeScreen() {
             ])
         ]).start();
 
-        fetchRestaurants();
-        fetchBanners();
+        const loadData = async () => {
+            try {
+                // Parallelize all initial fetches
+                await Promise.all([
+                    fetchRestaurants(),
+                    fetchBanners()
+                ]);
+            } catch (err) {
+                console.error('Initial Load Error:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadData();
         Animated.timing(welcomeFade, { toValue: 1, duration: 800, useNativeDriver: true }).start();
 
         // Search pulse animation
