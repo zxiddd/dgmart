@@ -90,12 +90,21 @@ const getAssignedOrders = async (req, res, next) => {
 
         const assignmentsRes = await db.query(`
             SELECT da.*, 
-            row_to_json(o.*) as order_details 
+            json_build_object(
+                'id', o.id,
+                'order_number', o.order_number,
+                'delivery_address', o.delivery_address,
+                'delivery_fee', o.delivery_fee,
+                'customer_phone', o.customer_phone,
+                'customer_name', u.name,
+                'status', o.status
+            ) as order_details 
             FROM delivery_assignments da
             JOIN orders o ON da.order_id = o.id
+            JOIN users u ON o.user_id = u.id
             WHERE da.partner_id = $1
             ORDER BY da.created_at DESC
-        `, [uid]); // Note: Assignments user user_id or partner_id? Schema says partner_id UUID REFERENCES users(id). So it's UID.
+        `, [uid]);
         // Wait, earlier (step 1044 schema) partner_id REFERENCES users(id).
         // My code passed 'partner_id' (users.id) in assignments.
         // So here WHERE da.partner_id = $1 (uid) is correct.
@@ -206,21 +215,21 @@ const updateDeliveryStatus = async (req, res, next) => {
                 const { customer_id, restaurant_owner_id, order_number } = orderDetailRes.rows[0];
 
                 // 1. Notify Customer
-                io.to(`user_${customer_id}`).emit('order_status_update', {
+                io.to(`user:${customer_id}`).emit('order_status_update', {
                     order_id: assignment.order_id,
                     order_number,
                     status: status
                 });
 
                 // 2. Notify Restaurant Owner
-                io.to(`user_${restaurant_owner_id}`).emit('order_status_update', {
+                io.to(`user:${restaurant_owner_id}`).emit('order_status_update', {
                     order_id: assignment.order_id,
                     order_number,
                     status: status
                 });
 
                 // 3. Notify the Rider (for UI sync across tabs/devices)
-                io.to(`user_${assignment.partner_id}`).emit('assignment_status_update', {
+                io.to(`user:${assignment.partner_id}`).emit('assignment_status_update', {
                     assignment_id: assignmentId,
                     status: status
                 });

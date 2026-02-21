@@ -182,6 +182,14 @@ export default function DashboardPage() {
                             </div>
 
                             <div className="flex gap-3">
+                                <Package size={18} className="text-green-500 flex-shrink-0 mt-1" />
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold text-gray-400">Customer Name</p>
+                                    <p className="text-sm font-medium text-gray-800">{activeAssignment.order_details.customer_name || 'Customer'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
                                 <Navigation size={18} className="text-blue-500 flex-shrink-0 mt-1" />
                                 <div>
                                     <p className="text-[10px] uppercase font-bold text-gray-400">Customer Contact</p>

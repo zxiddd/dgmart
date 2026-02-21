@@ -52,7 +52,13 @@ const createOrder = async (req, res, next) => {
             customerPhone = userRes.rows[0].phone;
         }
 
-        if (!customerPhone) throw new Error('Phone number is required to place an order.');
+        if (!customerPhone) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number is required to place an order.',
+                error_code: 'PHONE_REQUIRED'
+            });
+        }
 
         // Update user phone if it was provided and different
         if (phone && phone !== userRes.rows[0].phone) {
@@ -262,17 +268,35 @@ const getUserOrders = async (req, res, next) => {
 const getOrder = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const orderRes = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
+        const query = `
+            SELECT o.*, r.name as restaurant_name, r.phone as restaurant_phone
+            FROM orders o
+            JOIN restaurants r ON o.restaurant_id = r.id
+            WHERE o.id = $1
+        `;
+        const orderRes = await db.query(query, [id]);
         if (orderRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
         const order = orderRes.rows[0];
 
-        if (order.user_id !== req.user.id && order.restaurant_id !== req.user.restaurant_id && !['admin', 'super_admin'].includes(req.user.role) && req.user.role !== 'delivery_partner') return res.status(403).json({ success: false, message: 'Not authorized' });
+        if (order.user_id !== req.user.id && order.restaurant_id !== req.user.restaurant_id && !['admin', 'super_admin'].includes(req.user.role) && req.user.role !== 'delivery_partner') {
+            return res.status(403).json({ success: false, message: 'Not authorized' });
+        }
 
         const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
         const delRes = await db.query('SELECT da.*, u.name as partner_name, u.phone as partner_phone FROM delivery_assignments da LEFT JOIN users u ON da.partner_id = u.id WHERE da.order_id = $1', [id]);
 
-        res.json({ success: true, data: { order, items: itemsRes.rows, delivery: delRes.rows[0] || null } });
-    } catch (e) { next(e); }
+        const delivery = delRes.rows[0] || null;
+
+        // Hide rider details from user until picked up
+        if (req.user.role === 'customer' && delivery && !['picked_up', 'on_the_way', 'delivered'].includes(order.status)) {
+            delivery.partner_name = 'Assigning...';
+            delivery.partner_phone = null;
+        }
+
+        res.json({ success: true, data: { order, items: itemsRes.rows, delivery } });
+    } catch (e) {
+        next(e);
+    }
 };
 
 const getRestaurantOrders = async (req, res, next) => {
@@ -537,8 +561,8 @@ const assignDeliveryPartner = async (orderId, order, client) => {
             // 3. Notify Partner via Socket
             const io = global.io; // Ensure io is accessible globally or passed
             if (io) {
-                console.log(`Emitting new_assignment to user_${bestPartner.user_id}`);
-                io.to(`user_${bestPartner.user_id}`).emit('new_assignment', {
+                console.log(`Emitting new_assignment to user:${bestPartner.user_id}`);
+                io.to(`user:${bestPartner.user_id}`).emit('new_assignment', {
                     assignment_id: assignment.id,
                     order_id: orderId,
                     order_number: order.order_number,

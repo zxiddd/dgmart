@@ -26,8 +26,6 @@ export default function CartScreen() {
     const [orderLoading, setOrderLoading] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('cod');
     const [previewData, setPreviewData] = useState(null);
-    const [phone, setPhone] = useState(profile?.phone || '');
-    const [isAddingPhone, setIsAddingPhone] = useState(!profile?.phone);
 
     useEffect(() => {
         if (items.length > 0 && currentAddress) {
@@ -126,8 +124,11 @@ export default function CartScreen() {
             return;
         }
 
-        if (!profile?.phone && (!phone || phone.length < 10)) {
-            Alert.alert('Phone Required', 'A valid 10-digit phone number is mandatory for delivery.');
+        if (!profile?.phone) {
+            Alert.alert('Phone Required', 'A verified phone number is required for delivery. Please update your profile.', [
+                { text: 'Update Profile', onPress: () => router.push('/(tabs)/profile') },
+                { text: 'Cancel', style: 'cancel' }
+            ]);
             return;
         }
 
@@ -139,7 +140,6 @@ export default function CartScreen() {
                 restaurant_id: restaurantId,
                 address_id: currentAddress.id,
                 payment_method: paymentMethod,
-                phone: profile?.phone || phone,
                 items: items.map(i => ({
                     item_id: i.id,
                     quantity: i.quantity,
@@ -290,44 +290,6 @@ export default function CartScreen() {
                         </View>
                     ) : (
                         <Text style={styles.noAddressText}>Please select a delivery address</Text>
-                    )}
-                </View>
-
-                {/* 2.5 Contact Details (Directly in Cart) */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <View style={styles.iconCircle}>
-                            <MaterialIcons name="phone" size={20} color={COLORS.primary} />
-                        </View>
-                        <Text style={styles.cardTitle}>Contact Number</Text>
-                        {!profile?.phone && (
-                            <TouchableOpacity onPress={() => setIsAddingPhone(!isAddingPhone)} style={{ marginLeft: 'auto' }}>
-                                <Text style={styles.changeBtnText}>{isAddingPhone ? 'CANCEL' : 'CHANGE'}</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-
-                    {isAddingPhone ? (
-                        <View style={styles.phoneInputContainer}>
-                            <Text style={styles.inputLabel}>Enter 10-digit Mobile Number</Text>
-                            <View style={styles.phoneInputWrapper}>
-                                <Text style={styles.phonePrefix}>+91</Text>
-                                <TextInput
-                                    style={styles.phoneInput}
-                                    placeholder="9876543210"
-                                    keyboardType="phone-pad"
-                                    maxLength={10}
-                                    value={phone}
-                                    onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
-                                />
-                            </View>
-                            <Text style={styles.phoneHint}>Verification code will be shown after pickup</Text>
-                        </View>
-                    ) : (
-                        <View>
-                            <Text style={styles.phoneValue}>{profile?.phone || 'No phone number added'}</Text>
-                            <Text style={styles.phoneHint}>Used for delivery verification OTP</Text>
-                        </View>
                     )}
                 </View>
 

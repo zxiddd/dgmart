@@ -68,9 +68,13 @@ export default function TrackingScreen() {
         try {
             const res = await orderAPI.getById(id);
             if (res.success) {
-                setOrder(res.data.order);
-                // If order has delivery partner, maybe set initial location if available? 
-                // Currently API doesn't return live location, only static.
+                setOrder({
+                    ...res.data.order,
+                    delivery_partner: res.data.delivery ? {
+                        name: res.data.delivery.partner_name,
+                        phone: res.data.delivery.partner_phone,
+                    } : null
+                });
             }
         } catch {
             // Demo order fallback
@@ -222,8 +226,20 @@ export default function TrackingScreen() {
                 <View style={styles.orderSummaryV2}>
                     <Text style={styles.sectionTitleV2}>Order Summary</Text>
                     <View style={styles.summaryTopV2}>
-                        <Text style={styles.orderNumberV2}>Order #{order.order_number}</Text>
-                        <Text style={styles.restaurantNameSmallV2}>{order.restaurant_name}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View>
+                                <Text style={styles.orderNumberV2}>Order #{order.order_number}</Text>
+                                <Text style={styles.restaurantNameSmallV2}>{order.restaurant_name}</Text>
+                            </View>
+                            {order.restaurant_phone && (
+                                <TouchableOpacity
+                                    style={styles.contactIconBtn}
+                                    onPress={() => Alert.alert('Call Restaurant', `Call ${order.restaurant_name} at ${order.restaurant_phone}?`)}
+                                >
+                                    <MaterialIcons name="call" size={18} color={COLORS.primary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     </View>
 
                     <View style={styles.summaryDividerV2} />
@@ -250,12 +266,19 @@ export default function TrackingScreen() {
                             <MaterialIcons name="delivery-dining" size={28} color={COLORS.white} />
                         </View>
                         <View style={styles.partnerInfoV2}>
-                            <Text style={styles.partnerNameV2}>{order.delivery_partner.name}</Text>
-                            <Text style={styles.partnerSubV2}>{order.delivery_partner.vehicle || 'Delivery Host'}</Text>
+                            <Text style={styles.partnerNameV2}>{order.delivery_partner.name || 'Assigning Partner...'}</Text>
+                            <Text style={styles.partnerSubV2}>
+                                {order.delivery_partner.phone ? order.delivery_partner.phone : 'Contact details available after pickup'}
+                            </Text>
                         </View>
-                        <TouchableOpacity style={styles.partnerCallBtnV2}>
-                            <MaterialIcons name="call" size={20} color={COLORS.white} />
-                        </TouchableOpacity>
+                        {order.delivery_partner.phone && (
+                            <TouchableOpacity
+                                style={styles.partnerCallBtnV2}
+                                onPress={() => Alert.alert('Call Partner', `Call ${order.delivery_partner.name} at ${order.delivery_partner.phone}?`)}
+                            >
+                                <MaterialIcons name="call" size={20} color={COLORS.white} />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 
@@ -508,6 +531,14 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.bold,
         color: COLORS.error,
         textDecorationLine: 'underline',
+    },
+    contactIconBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.primary + '10',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 
     // OTP Card Styles

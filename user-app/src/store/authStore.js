@@ -119,4 +119,13 @@ export const useAuthStore = create((set, get) => ({
         }
         return res;
     },
+
+    // Register (step 2 - profile completion)
+    register: async (data) => {
+        const res = await authAPI.register(data);
+        if (res.success) {
+            set({ profile: res.data.user, isRegistered: true });
+        }
+        return res;
+    },
 }));

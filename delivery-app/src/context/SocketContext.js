@@ -33,6 +33,7 @@ export const SocketProvider = ({ children }) => {
                     newSocket.on('connect', () => {
                         console.log('Socket connected:', newSocket.id);
                         newSocket.emit('join', { userId: user.id, role: 'delivery' });
+                        // The backend socketHandler.js also handles joining rooms based on userId
                     });
 
                     newSocket.on('connect_error', (err) => {
