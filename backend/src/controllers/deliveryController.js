@@ -170,9 +170,33 @@ const updateDeliveryStatus = async (req, res, next) => {
         const { assignmentId } = req.params;
         const { status, otp } = req.body;
 
-        const assignRes = await client.query('SELECT * FROM delivery_assignments WHERE id = $1', [assignmentId]);
-        if (assignRes.rows.length === 0) throw new Error('Not found');
+        // Validate status
+        const validStatuses = ['picked_up', 'delivered'];
+        if (!status || !validStatuses.includes(status)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+
+        // Look up assignment by id first, then try order_id as fallback
+        let assignRes = await client.query('SELECT * FROM delivery_assignments WHERE id = $1', [assignmentId]);
+        if (assignRes.rows.length === 0) {
+            // Fallback: maybe frontend sent order_id instead of assignment_id
+            assignRes = await client.query(
+                'SELECT * FROM delivery_assignments WHERE order_id = $1 AND partner_id = $2',
+                [assignmentId, req.user.id]
+            );
+        }
+        if (assignRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Assignment not found' });
+        }
         const assignment = assignRes.rows[0];
+
+        // Authorize: only the assigned rider can update
+        if (assignment.partner_id !== req.user.id) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ success: false, message: 'Not authorized' });
+        }
 
         let updates = 'status = $1';
         if (status === 'picked_up') {
