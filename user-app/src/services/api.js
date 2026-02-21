@@ -5,7 +5,7 @@ import { supabase } from '../config/supabase';
 // For Physical Device use: 'http://YOUR_PC_IP:5000/api' (Current: 172.20.10.2)
 // For Web/Desktop use: 'http://localhost:5000/api'
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.2:5000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.degloormart.in/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
