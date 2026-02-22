@@ -38,7 +38,11 @@
       },
       "autoIncrement": true,
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://prvhnlamrknodwxuswyv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBydmhubGFtcmtub2R3eHVzd3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MTUwNjgsImV4cCI6MjA4NjQ5MTA2OH0.boUjRNYoYgtBCszvm9ob239wJ-ZeJe9OXKAuHnFkJ40",
+        "EXPO_PUBLIC_API_URL": "https://api.degloormart.in/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://api.degloormart.in"
       }
     }
   },
