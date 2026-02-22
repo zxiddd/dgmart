@@ -61,7 +61,7 @@ const createOrder = async (req, res, next) => {
         }
 
         // Update user phone if it was provided and different
-        if (phone && phone !== userRes.rows[0].phone) {
+        if (phone && phone !== userRes.rows[0]?.phone) {
             await client.query('UPDATE users SET phone = $1 WHERE id = $2', [phone, userId]);
         }
 
