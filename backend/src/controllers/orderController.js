@@ -88,7 +88,15 @@ const createOrder = async (req, res, next) => {
 
         // Validate address
         const addrRes = await client.query('SELECT * FROM addresses WHERE id = $1', [address_id]);
-        if (addrRes.rows.length === 0 || addrRes.rows[0].user_id !== userId) throw new Error('Invalid delivery address.');
+        if (addrRes.rows.length === 0 || addrRes.rows[0].user_id !== userId) {
+            console.error('❌ [ORDER FAIL] Invalid address block:', {
+                providedAddressId: address_id,
+                foundRows: addrRes.rows.length,
+                dbUserId: addrRes.rows[0]?.user_id,
+                requestUserId: userId
+            });
+            throw new Error('Invalid delivery address.');
+        }
         const address = addrRes.rows[0];
 
         // Calculate distance/fee
