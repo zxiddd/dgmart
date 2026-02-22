@@ -65,6 +65,19 @@ const createOrder = async (req, res, next) => {
             await client.query('UPDATE users SET phone = $1 WHERE id = $2', [phone, userId]);
         }
 
+        // Rate Limiting: Prevent orders within 30 seconds of the last order
+        const lastOrderRes = await client.query('SELECT placed_at FROM orders WHERE user_id = $1 ORDER BY placed_at DESC LIMIT 1', [userId]);
+        if (lastOrderRes.rows.length > 0) {
+            const lastOrderTime = new Date(lastOrderRes.rows[0].placed_at).getTime();
+            const now = Date.now();
+            if (now - lastOrderTime < 30000) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Please wait 30 seconds before placing another order to prevent duplicates.'
+                });
+            }
+        }
+
         // Generate 4-digit OTP
         const deliveryOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
