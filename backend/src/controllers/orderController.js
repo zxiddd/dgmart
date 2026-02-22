@@ -89,10 +89,12 @@ const createOrder = async (req, res, next) => {
         let subtotal = 0;
         const orderItems = [];
 
+        const itemIds = items.map(i => i.item_id);
+        const itemsRes = await client.query('SELECT * FROM menu_items WHERE id = ANY($1)', [itemIds]);
+
         for (const item of items) {
-            const itemRes = await client.query('SELECT * FROM menu_items WHERE id = $1', [item.item_id]);
-            if (itemRes.rows.length === 0 || itemRes.rows[0].restaurant_id !== restaurant_id) throw new Error(`Item ${item.item_id} not found.`);
-            const itemData = itemRes.rows[0];
+            const itemData = itemsRes.rows.find(row => row.id === item.item_id);
+            if (!itemData || itemData.restaurant_id !== restaurant_id) throw new Error(`Item ${item.item_id} not found.`);
             if (!itemData.is_available) throw new Error(`${itemData.name} unavailable.`);
 
             let itemTotal = parseFloat(itemData.price) * item.quantity;
@@ -199,9 +201,15 @@ const createOrder = async (req, res, next) => {
             order.razorpay_order_id = rzpOrder.id;
         }
 
-        for (const item of orderItems) {
-            await client.query(`INSERT INTO order_items (order_id, item_id, item_name, item_price, quantity, customizations, total_price) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [order.id, item.item_id, item.item_name, item.item_price, item.quantity, JSON.stringify(item.customizations), item.total_price]);
+        if (orderItems.length > 0) {
+            const valuesParams = [];
+            const flatValues = [];
+            let pIdx = 1;
+            for (const item of orderItems) {
+                valuesParams.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+                flatValues.push(order.id, item.item_id, item.item_name, item.item_price, item.quantity, JSON.stringify(item.customizations), item.total_price);
+            }
+            await client.query(`INSERT INTO order_items (order_id, item_id, item_name, item_price, quantity, customizations, total_price) VALUES ${valuesParams.join(', ')}`, flatValues);
         }
 
         await client.query('COMMIT');
@@ -683,10 +691,12 @@ const previewOrder = async (req, res, next) => {
         // 3. Calculate Subtotal
         let subtotal = 0;
         const orderItems = [];
+        const itemIds = items.map(i => i.item_id);
+        const itemsRes = await client.query('SELECT * FROM menu_items WHERE id = ANY($1)', [itemIds]);
+
         for (const item of items) {
-            const itemRes = await client.query('SELECT * FROM menu_items WHERE id = $1', [item.item_id]);
-            if (itemRes.rows.length > 0) {
-                const itemData = itemRes.rows[0];
+            const itemData = itemsRes.rows.find(row => row.id === item.item_id);
+            if (itemData) {
                 let itemTotal = parseFloat(itemData.price) * item.quantity;
                 subtotal += itemTotal;
                 orderItems.push({ name: itemData.name, price: itemData.price, quantity: item.quantity, total: itemTotal });
