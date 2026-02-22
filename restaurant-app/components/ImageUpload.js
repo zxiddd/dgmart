@@ -40,7 +40,7 @@ export default function ImageUpload({ value, onChange, folder = 'uploads', label
             formData.append('folder', folder);
 
             // Use native fetch — avoids axios Content-Type header conflicts
-            const response = await fetch(`${BACKEND_URL}/api/upload`, {
+            const response = await fetch(`${BACKEND_URL}/upload`, {
                 method: 'POST',
                 headers: {
                     // Do NOT set Content-Type — browser sets it with correct multipart boundary
