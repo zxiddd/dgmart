@@ -9,7 +9,8 @@ import Toast from 'react-native-toast-message';
 
 export default function AddAddressScreen() {
     const router = useRouter();
-    const { id } = useLocalSearchParams();
+    const { id, onboarding } = useLocalSearchParams();
+    const isOnboarding = onboarding === 'true';
     const [label, setLabel] = useState('Home');
     const [fullAddress, setFullAddress] = useState('');
     const [city, setCity] = useState('Degloor');
@@ -17,10 +18,10 @@ export default function AddAddressScreen() {
     const [zones, setZones] = useState([]);
     const [showZonePicker, setShowZonePicker] = useState(false);
 
-    const { profile, fetchAddresses, addresses } = useAuthStore();
+    const { profile, user, fetchAddresses, addresses } = useAuthStore();
     const [loading, setLoading] = useState(false);
     const [fetchingZones, setFetchingZones] = useState(true);
-    const [phone, setPhone] = useState(profile?.phone || '');
+    const [phone, setPhone] = useState(profile?.phone || user?.user_metadata?.phone || '');
     const [landmark, setLandmark] = useState('');
     const [isDefault, setIsDefault] = useState(true);
 
@@ -81,9 +82,13 @@ export default function AddAddressScreen() {
             const res = id ? await userAPI.updateAddress(id, data) : await userAPI.addAddress(data);
 
             if (res.success) {
-                Toast.show({ type: 'success', text1: id ? 'Address Updated' : 'Address Saved' });
+                Toast.show({ type: 'success', text1: id ? 'Address Updated' : 'Address Saved', text2: isOnboarding ? 'You\'re all set!' : undefined });
                 await fetchAddresses();
-                router.back();
+                if (isOnboarding) {
+                    router.replace('/(tabs)/home');
+                } else {
+                    router.back();
+                }
             } else {
                 throw new Error(res.message || 'Failed to save');
             }
@@ -97,10 +102,24 @@ export default function AddAddressScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <MaterialIcons name="arrow-back" size={24} color={COLORS.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{id ? 'Edit Address' : 'Add New Address'}</Text>
+                {isOnboarding ? (
+                    <View style={styles.onboardingHeaderContent}>
+                        <Text style={styles.headerTitle}>Set Delivery Address</Text>
+                        <Text style={styles.onboardingSubtitle}>Where should we deliver your orders?</Text>
+                    </View>
+                ) : (
+                    <>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                            <MaterialIcons name="arrow-back" size={24} color={COLORS.textPrimary} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>{id ? 'Edit Address' : 'Add New Address'}</Text>
+                    </>
+                )}
+                {isOnboarding && (
+                    <TouchableOpacity onPress={() => router.replace('/(tabs)/home')} style={styles.skipBtn}>
+                        <Text style={styles.skipBtnText}>Skip</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             <ScrollView contentContainerStyle={styles.scroll}>
@@ -254,6 +273,10 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', padding: SIZES.padding, paddingTop: 50, backgroundColor: COLORS.white, ...SHADOWS.sm },
     backButton: { marginRight: 16 },
     headerTitle: { fontSize: SIZES.lg, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+    onboardingHeaderContent: { flex: 1 },
+    onboardingSubtitle: { fontSize: SIZES.sm, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 2 },
+    skipBtn: { paddingHorizontal: 12, paddingVertical: 6 },
+    skipBtnText: { fontSize: SIZES.sm, fontFamily: FONTS.bold, color: COLORS.primary },
     scroll: { padding: SIZES.padding },
     sectionTitle: { fontSize: SIZES.md, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 12, marginTop: 8 },
     labelContainer: { flexDirection: 'row', gap: 12, marginBottom: 24 },

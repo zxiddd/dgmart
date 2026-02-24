@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { supabase } from '../config/supabase';
-import { userAPI, authAPI } from '../services/api';
+import { userAPI, authAPI, updateCachedToken } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCartStore } from './cartStore';
 
 export const useAuthStore = create((set, get) => ({
     user: null,
@@ -18,19 +19,24 @@ export const useAuthStore = create((set, get) => ({
             const { data: { session } } = await supabase.auth.getSession();
 
             if (session) {
+                updateCachedToken(session.access_token);
                 set({ user: session.user, session, isAuthenticated: true, isLoading: false });
                 await get().fetchProfile();
             } else {
+                updateCachedToken(null);
                 set({ user: null, session: null, isAuthenticated: false, isRegistered: false, isLoading: false });
             }
 
             // Listen for auth changes
             supabase.auth.onAuthStateChange(async (_event, session) => {
                 if (session) {
+                    updateCachedToken(session.access_token);
                     set({ user: session.user, session, isAuthenticated: true, isLoading: false });
                     await get().fetchProfile();
                 } else {
-                    set({ user: null, session: null, profile: null, isAuthenticated: false, isRegistered: false, isLoading: false });
+                    updateCachedToken(null);
+                    useCartStore.getState().clearCart();
+                    set({ user: null, session: null, profile: null, isAuthenticated: false, isRegistered: false, isLoading: false, currentAddress: null, addresses: [] });
                 }
             });
         } catch (error) {
@@ -64,9 +70,30 @@ export const useAuthStore = create((set, get) => ({
 
     // Sign Out
     signOut: async () => {
+        updateCachedToken(null);
+        useCartStore.getState().clearCart();
         await supabase.auth.signOut();
         await AsyncStorage.clear();
-        set({ user: null, session: null, profile: null, isAuthenticated: false, isRegistered: false });
+        set({ user: null, session: null, profile: null, isAuthenticated: false, isRegistered: false, currentAddress: null, addresses: [] });
+    },
+
+    // Login with Firebase OTP — receives Supabase tokens from our backend bridge
+    loginWithFirebase: async (accessToken, refreshToken) => {
+        try {
+            const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            });
+            if (error) throw error;
+            if (data.session) {
+                updateCachedToken(data.session.access_token);
+                set({ user: data.session.user, session: data.session, isAuthenticated: true, isLoading: false });
+                await get().fetchProfile();
+            }
+        } catch (err) {
+            console.error('Firebase login bridge error:', err);
+            throw err;
+        }
     },
 
     // Address Management

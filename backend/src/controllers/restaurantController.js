@@ -36,7 +36,7 @@ const listRestaurants = async (req, res, next) => {
                     lat,
                     lng
                 FROM restaurants
-                WHERE is_active = true AND status = $1
+                WHERE status = $1
                 AND (name ILIKE $2 OR $2 = ANY(cuisine_type))
 
                 UNION ALL
@@ -63,7 +63,7 @@ const listRestaurants = async (req, res, next) => {
                 FROM menu_items m
                 JOIN restaurants r ON m.restaurant_id = r.id
                 LEFT JOIN menu_categories c ON m.category_id = c.id
-                WHERE r.is_active = true AND r.status = $1
+                WHERE r.status = $1
                 AND m.is_available = true
                 AND (m.name ILIKE $2 OR m.description ILIKE $2)
             `;
@@ -80,8 +80,7 @@ const listRestaurants = async (req, res, next) => {
                     id as restaurant_id,
                     name as restaurant_name
                 FROM restaurants 
-                WHERE is_active = true 
-                AND status = $1
+                WHERE status = $1
             `;
             const params = [activeStatus];
             let paramCount = 1;

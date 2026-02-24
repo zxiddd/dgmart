@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, StyleSheet, RefreshControl, Dimensions, StatusBar, Animated, Platform, LayoutAnimation, UIManager, Easing, Modal } from 'react-native';
+import {
+    View, Text, TouchableOpacity, FlatList, ScrollView,
+    StyleSheet, RefreshControl, Dimensions, StatusBar,
+    Animated, Platform, UIManager, Easing, Modal
+} from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -10,10 +14,7 @@ import { useCartStore } from '../../src/store/cartStore';
 import { useRestaurantStore } from '../../src/store/restaurantStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
     if (UIManager.setLayoutAnimationEnabledExperimental) {
         UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -23,85 +24,40 @@ if (Platform.OS === 'android') {
 const { width } = Dimensions.get('window');
 
 const CATEGORIES = [
-    { id: 'all', name: 'All', icon: 'utensils', type: 'fa' },
-    { id: 'biryani', name: 'Biryani', icon: 'utensils', type: 'fa' },
-    { id: 'pizza', name: 'Pizza', icon: 'pizza-slice', type: 'fa' },
-    { id: 'burger', name: 'Burger', icon: 'hamburger', type: 'fa' },
-    { id: 'chinese', name: 'Chinese', icon: 'bacon', type: 'fa' }, // approximating
-    { id: 'south_indian', name: 'South Indian', icon: 'leaf', type: 'fa' },
-    { id: 'desserts', name: 'Desserts', icon: 'ice-cream', type: 'fa' },
-    { id: 'drinks', name: 'Drinks', icon: 'coffee', type: 'fa' },
+    { id: 'all', name: 'All', icon: 'utensils' },
+    { id: 'biryani', name: 'Biryani', icon: 'utensils' },
+    { id: 'pizza', name: 'Pizza', icon: 'pizza-slice' },
+    { id: 'burger', name: 'Burger', icon: 'hamburger' },
+    { id: 'chinese', name: 'Chinese', icon: 'bacon' },
+    { id: 'south_indian', name: 'South Indian', icon: 'leaf' },
+    { id: 'desserts', name: 'Desserts', icon: 'ice-cream' },
+    { id: 'drinks', name: 'Drinks', icon: 'coffee' },
 ];
 
-const ScalePress = ({ children, onPress, style, scaleTo = 0.95 }) => {
-    const scaleValue = useRef(new Animated.Value(1)).current;
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+}
 
-    const onPressIn = () => {
-        Animated.spring(scaleValue, {
-            toValue: scaleTo,
-            useNativeDriver: true,
-        }).start();
-    };
-
-    const onPressOut = () => {
-        Animated.spring(scaleValue, {
-            toValue: 1,
-            friction: 3,
-            tension: 40,
-            useNativeDriver: true,
-        }).start();
-    };
-
-    return (
-        <Animated.View style={[{ transform: [{ scale: scaleValue }] }]}>
-            <TouchableOpacity
-                onPress={onPress}
-                onPressIn={onPressIn}
-                onPressOut={onPressOut}
-                activeOpacity={1}
-                style={style}
-            >
-                {children}
-            </TouchableOpacity>
-        </Animated.View>
-    );
-};
-
+// ─── Shimmer Skeleton ────────────────────────────────────────────────────────
 const Shimmer = ({ style }) => {
-    const shimmerAnim = useRef(new Animated.Value(0)).current;
-
+    const anim = useRef(new Animated.Value(0)).current;
     useEffect(() => {
-        const animation = Animated.loop(
-            Animated.timing(shimmerAnim, {
-                toValue: 1,
-                duration: 1500,
-                easing: Easing.linear,
-                useNativeDriver: true,
-            })
+        const loop = Animated.loop(
+            Animated.timing(anim, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true })
         );
-        animation.start();
-        return () => animation.stop();
+        loop.start();
+        return () => loop.stop();
     }, []);
-
-    const translateX = shimmerAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-width, width],
-    });
-
+    const tx = anim.interpolate({ inputRange: [0, 1], outputRange: [-width, width] });
     return (
-        <View style={[style, { backgroundColor: '#E1E9EE', overflow: 'hidden' }]}>
-            <Animated.View
-                style={[
-                    StyleSheet.absoluteFill,
-                    {
-                        transform: [{ translateX }],
-                    },
-                ]}
-            >
+        <View style={[style, { backgroundColor: '#EDEDED', overflow: 'hidden' }]}>
+            <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: tx }] }]}>
                 <LinearGradient
-                    colors={['#E1E9EE', '#F2F8FC', '#E1E9EE']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    colors={['#EDEDED', '#F8F8F8', '#EDEDED']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={{ flex: 1 }}
                 />
             </Animated.View>
@@ -109,478 +65,273 @@ const Shimmer = ({ style }) => {
     );
 };
 
+// ─── Scale-on-press wrapper ──────────────────────────────────────────────────
+const ScalePress = ({ children, onPress, onPressIn, onLongPress, style, scaleTo = 0.96 }) => {
+    const scale = useRef(new Animated.Value(1)).current;
+    return (
+        <Animated.View style={[{ transform: [{ scale }] }, style]}>
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                onPressIn={() => {
+                    onPressIn?.();
+                    Animated.spring(scale, { toValue: scaleTo, useNativeDriver: true, speed: 50 }).start();
+                }}
+                onPressOut={() => {
+                    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 4 }).start();
+                }}
+            >
+                {children}
+            </TouchableOpacity>
+        </Animated.View>
+    );
+};
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 export default function HomeScreen() {
     const router = useRouter();
-    const profile = useAuthStore((s) => s.profile);
-    const currentAddress = useAuthStore((s) => s.currentAddress);
-    const cartItems = useCartStore((s) => s.getTotalItems());
+    const profile = useAuthStore(s => s.profile);
+    const user = useAuthStore(s => s.user);
+    const currentAddress = useAuthStore(s => s.currentAddress);
+    const cartCount = useCartStore(s => s.getTotalItems());
 
-    const scrollY = useRef(new Animated.Value(0)).current;
-
-    // Theme Animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideDownAnim = useRef(new Animated.Value(-50)).current;
-    const searchScaleAnim = useRef(new Animated.Value(0.8)).current;
-    const searchFadeAnim = useRef(new Animated.Value(0)).current;
+    const setCachedRestaurant = useRestaurantStore(s => s.setRestaurant);
+    const getCachedRestaurant = useRestaurantStore(s => s.getRestaurant);
 
     const [restaurants, setRestaurants] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeCategory, setActiveCategory] = useState('all');
-    const [searchQuery, setSearchQuery] = useState('');
     const [banners, setBanners] = useState([]);
-    const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-    const bannerScrollRef = useRef(null);
-    const welcomeFade = useRef(new Animated.Value(0)).current;
-    const searchPulseAnim = useRef(new Animated.Value(1)).current;
-    const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-    const [showQuickActions, setShowQuickActions] = useState(false);
-    const setCachedRestaurant = useRestaurantStore(s => s.setRestaurant);
-    const getCachedRestaurant = useRestaurantStore(s => s.getRestaurant);
+    const [bannerIdx, setBannerIdx] = useState(0);
+    const [selectedRest, setSelectedRest] = useState(null);
+    const [showActions, setShowActions] = useState(false);
+    const bannerRef = useRef(null);
 
-    const prefetchRestaurant = async (restaurantId) => {
-        if (!restaurantId || getCachedRestaurant(restaurantId)) return;
-        try {
-            const res = await restaurantAPI.getById(restaurantId);
-            if (res.success) {
-                setCachedRestaurant(restaurantId, res.data.restaurant);
-            }
-        } catch (err) {
-            console.log('Prefetch Error:', err);
-        }
-    };
+    // Single entry fade-in — no parallax/scroll animation to keep 60 fps
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    }, []);
 
-    const fetchBanners = async () => {
-        try {
-            const res = await bannerAPI.list();
-            if (res.success) {
-                setBanners(res.data);
-            }
-        } catch (err) {
-            console.log('Fetch Banners Error:', err);
-        }
-    };
+    const firstName = profile?.name?.split(' ')[0] || user?.user_metadata?.name?.split(' ')[0] || 'there';
 
+    // ── Data fetching ────────────────────────────────────────────────────────
     const fetchRestaurants = useCallback(async () => {
         try {
             const params = {};
             if (activeCategory !== 'all') params.cuisine = activeCategory;
-            if (searchQuery) params.search = searchQuery;
             const res = await restaurantAPI.list(params);
-            if (res.success) {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                setRestaurants(res.data.restaurants);
-            }
-        } catch (err) {
-            console.error('Fetch Restaurants Error:', err);
-            // Fallback data
+            if (res.success) setRestaurants(res.data.restaurants);
+        } catch {
             setRestaurants([
-                { id: '1', name: 'Biryani Palace', cuisine_type: ['biryani', 'north_indian'], rating: 4.5, total_reviews: 234, avg_delivery_time_mins: 35, delivery_fee: 20, min_order_amount: 149, is_veg: false, banner_url: 'https://placehold.co/600x400/D4AF37/FFFFFF?text=Biryani+Palace' },
-                { id: '2', name: 'Pizza Corner', cuisine_type: ['pizza', 'italian'], rating: 4.2, total_reviews: 156, avg_delivery_time_mins: 25, delivery_fee: 15, min_order_amount: 199, is_veg: false, banner_url: 'https://placehold.co/600x400/B4941F/FFFFFF?text=Pizza+Corner' },
-                { id: '3', name: 'Green Leaf Veg', cuisine_type: ['south_indian', 'chinese'], rating: 4.7, total_reviews: 389, avg_delivery_time_mins: 30, delivery_fee: 10, min_order_amount: 99, is_veg: true, banner_url: 'https://placehold.co/600x400/F3E5AB/333333?text=Green+Leaf' },
-                { id: '4', name: 'Burger Hub', cuisine_type: ['burger', 'fast_food'], rating: 4.0, total_reviews: 98, avg_delivery_time_mins: 20, delivery_fee: 25, min_order_amount: 149, is_veg: false, banner_url: 'https://placehold.co/600x400/D4AF37/FFFFFF?text=Burger+Hub' },
-                { id: '5', name: 'Chai & Snacks', cuisine_type: ['drinks', 'snacks'], rating: 4.6, total_reviews: 512, avg_delivery_time_mins: 15, delivery_fee: 0, min_order_amount: 49, is_veg: true, banner_url: 'https://placehold.co/600x400/B4941F/FFFFFF?text=Chai+Snacks' },
+                { id: '1', name: 'Biryani Palace', cuisine_type: ['biryani'], rating: 4.5, total_reviews: 234, avg_prep_time_mins: 35, delivery_fee: 20, min_order_amount: 149, banner_url: 'https://placehold.co/600x400/D4AF37/FFFFFF?text=Biryani+Palace' },
+                { id: '2', name: 'Pizza Corner', cuisine_type: ['pizza'], rating: 4.2, total_reviews: 156, avg_prep_time_mins: 25, delivery_fee: 15, min_order_amount: 199, banner_url: 'https://placehold.co/600x400/B4941F/FFFFFF?text=Pizza+Corner' },
+                { id: '3', name: 'Green Leaf Veg', cuisine_type: ['south_indian'], rating: 4.7, total_reviews: 389, avg_prep_time_mins: 30, delivery_fee: 0, min_order_amount: 99, banner_url: 'https://placehold.co/600x400/F3E5AB/333333?text=Green+Leaf', is_veg: true },
+                { id: '4', name: 'Burger Hub', cuisine_type: ['burger'], rating: 4.0, total_reviews: 98, avg_prep_time_mins: 20, delivery_fee: 25, min_order_amount: 149, banner_url: 'https://placehold.co/600x400/D4AF37/FFFFFF?text=Burger+Hub' },
+                { id: '5', name: 'Chai & Snacks', cuisine_type: ['drinks'], rating: 4.6, total_reviews: 512, avg_prep_time_mins: 15, delivery_fee: 0, min_order_amount: 49, banner_url: 'https://placehold.co/600x400/B4941F/FFFFFF?text=Chai+Snacks', is_veg: true },
             ]);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [activeCategory, searchQuery]);
+    }, [activeCategory]);
+
+    const fetchBanners = useCallback(async () => {
+        try {
+            const res = await bannerAPI.list();
+            if (res.success) setBanners(res.data);
+        } catch { }
+    }, []);
 
     useEffect(() => {
-        // Start Entry Animations
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true
-            }),
-            Animated.timing(slideDownAnim, {
-                toValue: 0,
-                duration: 600,
-                easing: Easing.out(Easing.back(1.5)),
-                useNativeDriver: true
-            }),
-            Animated.parallel([
-                Animated.timing(searchFadeAnim, { toValue: 1, duration: 600, delay: 300, useNativeDriver: true }),
-                Animated.spring(searchScaleAnim, { toValue: 1, friction: 6, tension: 40, delay: 300, useNativeDriver: true })
-            ])
-        ]).start();
-
-        const loadData = async () => {
-            try {
-                // Parallelize all initial fetches
-                await Promise.all([
-                    fetchRestaurants(),
-                    fetchBanners()
-                ]);
-            } catch (err) {
-                console.error('Initial Load Error:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-        Animated.timing(welcomeFade, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-
-        // Search pulse animation
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(searchPulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
-                Animated.timing(searchPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true })
-            ])
-        ).start();
+        Promise.all([fetchRestaurants(), fetchBanners()]);
     }, [fetchRestaurants]);
-
-    // --- Parallax Interpolations ---
-    const headerTranslateY = scrollY.interpolate({
-        inputRange: [0, 100],
-        outputRange: [0, -30],
-        extrapolate: 'clamp',
-    });
-
-    const headerContentOpacity = scrollY.interpolate({
-        inputRange: [0, 80],
-        outputRange: [1, 0],
-        extrapolate: 'clamp',
-    });
-
-    const searchTranslateY = scrollY.interpolate({
-        inputRange: [0, 100],
-        outputRange: [0, -25],
-        extrapolate: 'clamp',
-    });
-
-    const searchScale = scrollY.interpolate({
-        inputRange: [0, 100],
-        outputRange: [1, 0.95],
-        extrapolate: 'clamp',
-    });
 
     const onRefresh = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setRefreshing(true);
-        Promise.all([fetchRestaurants(), fetchBanners()]).finally(() => setRefreshing(false));
+        Promise.all([fetchRestaurants(), fetchBanners()]);
     };
 
-    const handleCategoryPress = (id) => {
-        Haptics.selectionAsync();
-        setActiveCategory(id);
+    const prefetch = async (id) => {
+        if (!id || getCachedRestaurant(id)) return;
+        try {
+            const res = await restaurantAPI.getById(id);
+            if (res.success) setCachedRestaurant(id, res.data.restaurant);
+        } catch { }
     };
 
-    // --- Render Components ---
+    // ── Header ───────────────────────────────────────────────────────────────
+    const renderHeader = () => (
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+            {/* Row 1 — greeting + profile */}
+            <View style={styles.headerRow1}>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.greeting}>{getGreeting()}, {firstName}! 👋</Text>
+                    <Text style={styles.greetingSub}>What would you like to eat?</Text>
+                </View>
+                <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/profile')}>
+                    <LinearGradient colors={['#D4AF37', '#B4941F']} style={styles.profileGradient}>
+                        <Text style={styles.profileInitial}>
+                            {(profile?.name || user?.user_metadata?.name || 'U')[0].toUpperCase()}
+                        </Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
 
-    const renderBanners = () => {
-        // When promos exist — full-width swipeable with dots
+            {/* Row 2 — address */}
+            <TouchableOpacity style={styles.addressBar} onPress={() => router.push('/addresses')} activeOpacity={0.7}>
+                <View style={styles.addressIconWrap}>
+                    <MaterialIcons name="location-on" size={16} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.addressLabel}>DELIVERING TO</Text>
+                    <Text style={styles.addressName} numberOfLines={1}>
+                        {currentAddress
+                            ? `${currentAddress.label ? currentAddress.label.charAt(0).toUpperCase() + currentAddress.label.slice(1) : 'Address'} · ${currentAddress.full_address}`
+                            : 'Set your delivery address'}
+                    </Text>
+                </View>
+                <MaterialIcons name="keyboard-arrow-down" size={20} color={COLORS.primary} />
+            </TouchableOpacity>
+
+            {/* Row 3 — search */}
+            <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.8}>
+                <Ionicons name="search-outline" size={18} color={COLORS.textSecondary} />
+                <Text style={styles.searchPlaceholder}>Search restaurants or dishes…</Text>
+                <View style={styles.searchDivider} />
+                <MaterialIcons name="tune" size={18} color={COLORS.primary} />
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    // ── Category chips ────────────────────────────────────────────────────────
+    const renderCategory = ({ item }) => {
+        const active = activeCategory === item.id;
+        return (
+            <TouchableOpacity
+                onPress={() => { Haptics.selectionAsync(); setActiveCategory(item.id); }}
+                style={[styles.chip, active && styles.chipActive]}
+                activeOpacity={0.75}
+            >
+                <FontAwesome5 name={item.icon} size={12} color={active ? COLORS.white : COLORS.primary} style={{ marginRight: 5 }} />
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    // ── Banner ────────────────────────────────────────────────────────────────
+    const renderBanner = () => {
         if (banners.length > 0) {
             return (
-                <View style={styles.bannerSection}>
+                <View style={styles.bannerWrap}>
                     <ScrollView
-                        ref={bannerScrollRef}
-                        horizontal
-                        pagingEnabled
-                        showsHorizontalScrollIndicator={false}
-                        onMomentumScrollEnd={(e) => {
-                            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-                            setCurrentBannerIndex(idx);
-                        }}
+                        ref={bannerRef}
+                        horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+                        onMomentumScrollEnd={e => setBannerIdx(Math.round(e.nativeEvent.contentOffset.x / (width - 32)))}
                     >
-                        {banners.map((banner, index) => (
-                            <View key={banner.id || index} style={styles.promoBannerCard}>
-                                <LinearGradient
-                                    colors={banner.gradient_colors || ['#D4AF37', '#B8860B']}
-                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                                    style={styles.promoBannerGradient}
-                                >
-                                    <View style={styles.promoBannerContent}>
-                                        <View style={styles.promoBadge}>
-                                            <Text style={styles.promoBadgeText}>{banner.badge_text || '🎉 PROMO'}</Text>
-                                        </View>
-                                        <Text style={styles.promoTitle}>{banner.title}</Text>
-                                        <Text style={styles.promoSubtitle}>{banner.subtitle}</Text>
-                                        <TouchableOpacity style={styles.promoBtn} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
-                                            <Text style={styles.promoBtnText}>{banner.button_text || 'Order Now'}</Text>
-                                        </TouchableOpacity>
+                        {banners.map((b, i) => (
+                            <LinearGradient
+                                key={b.id || i}
+                                colors={b.gradient_colors || ['#D4AF37', '#8B6508']}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                                style={styles.bannerCard}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <View style={styles.bannerBadge}>
+                                        <Text style={styles.bannerBadgeText}>{b.badge_text || '🎉 OFFER'}</Text>
                                     </View>
-                                    {banner.image_url ? (
-                                        <ExpoImage
-                                            source={{ uri: banner.image_url }}
-                                            style={styles.promoImage}
-                                            contentFit="contain"
-                                        />
-                                    ) : null}
-                                </LinearGradient>
-                            </View>
+                                    <Text style={styles.bannerTitle}>{b.title}</Text>
+                                    <Text style={styles.bannerSub}>{b.subtitle}</Text>
+                                    <TouchableOpacity style={styles.bannerBtn}>
+                                        <Text style={styles.bannerBtnText}>{b.button_text || 'Order Now'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {b.image_url ? (
+                                    <ExpoImage source={{ uri: b.image_url }} style={styles.bannerImg} contentFit="contain" />
+                                ) : null}
+                            </LinearGradient>
                         ))}
                     </ScrollView>
-                    <View style={styles.dotsRow}>
-                        {banners.map((_, i) => (
-                            <View key={i} style={[styles.dot2, i === currentBannerIndex && styles.dotActive]} />
-                        ))}
-                    </View>
+                    {banners.length > 1 && (
+                        <View style={styles.dotsRow}>
+                            {banners.map((_, i) => (
+                                <View key={i} style={[styles.dot, i === bannerIdx && styles.dotActive]} />
+                            ))}
+                        </View>
+                    )}
                 </View>
             );
         }
 
-        // No promos — Welcome banner
+        // Default brand banner
         return (
-            <Animated.View style={[styles.bannerSection, { opacity: welcomeFade }]}>
-                <LinearGradient
-                    colors={['#0f0c29', '#302b63', '#24243e']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={styles.welcomeCard}
-                >
-                    {/* Stars */}
-                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                        {[{ top: 12, left: 20 }, { top: 18, left: 120 }, { top: 8, left: 220 }, { top: 22, right: 30 }, { top: 10, right: 90 }].map((pos, i) => (
-                            <Text key={i} style={[styles.starDot, pos]}>{i % 2 === 0 ? '✦' : '✧'}</Text>
-                        ))}
-                    </View>
-
-                    <View style={styles.welcomeTextBlock}>
-                        <Text style={styles.welcomeEyebrow}>🛍️  YOUR FAVOURITE FOOD APP</Text>
-                        <Text style={styles.welcomeHeading}>Welcome to{`\n`}Degloor Mart</Text>
-                        <Text style={styles.welcomeCaption}>Fresh food · Fast delivery · Always on time</Text>
-                    </View>
-                </LinearGradient>
-            </Animated.View>
-        );
-    };
-
-    const renderCategory = ({ item }) => {
-        const isActive = activeCategory === item.id;
-        return (
-            <ScalePress
-                style={styles.categoryCircleWrapper}
-                onPress={() => handleCategoryPress(item.id)}
+            <LinearGradient
+                colors={['#D4AF37', '#A07810', '#7A5C00']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={[styles.bannerCard, styles.defaultBanner]}
             >
-                <View style={[styles.categoryCircle, isActive && styles.categoryCircleActive]}>
-                    <FontAwesome5 name={item.icon} size={22} color={isActive ? '#fff' : COLORS.primary} />
+                <View style={{ flex: 1 }}>
+                    <View style={styles.bannerBadge}>
+                        <Text style={styles.bannerBadgeText}>🛍️ DEGLOOR MART</Text>
+                    </View>
+                    <Text style={styles.bannerTitle}>Fresh Food,{'\n'}Fast Delivery</Text>
+                    <Text style={styles.bannerSub}>Order from the best restaurants in Degloor</Text>
                 </View>
-                <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]} numberOfLines={1}>
-                    {item.name}
-                </Text>
-            </ScalePress>
+                <View style={styles.bannerIconBlock}>
+                    <Text style={{ fontSize: 64 }}>🍛</Text>
+                </View>
+            </LinearGradient>
         );
     };
 
-    const RestaurantCard = ({ item, index }) => {
-        const isDish = item.result_type === 'dish';
-        const translateY = useRef(new Animated.Value(50)).current;
-        const opacity = useRef(new Animated.Value(0)).current;
-
-        useEffect(() => {
-            Animated.parallel([
-                Animated.timing(translateY, {
-                    toValue: 0,
-                    duration: 600,
-                    delay: (index % 5) * 100,
-                    easing: Easing.out(Easing.back(1)),
-                    useNativeDriver: true
-                }),
-                Animated.timing(opacity, {
-                    toValue: 1,
-                    duration: 500,
-                    delay: (index % 5) * 100,
-                    useNativeDriver: true
-                })
-            ]).start();
-        }, []);
-
-        return (
-            <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-                <ScalePress
-                    style={styles.restaurantCardV2}
-                    onPressIn={() => prefetchRestaurant(item.restaurant_id || item.id)}
-                    onPress={() => {
-                        Haptics.selectionAsync();
-                        router.push(`/restaurant/${item.restaurant_id || item.id}`);
-                    }}
-                    onLongPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                        setSelectedRestaurant(item);
-                        setShowQuickActions(true);
-                    }}
-                    scaleTo={0.98}
-                >
-                    <View style={styles.cardImageContainerV2}>
-                        <ExpoImage
-                            source={{ uri: item.image_url || item.banner_url || 'https://placehold.co/600x400/D4AF37/FFFFFF?text=Item' }}
-                            style={styles.cardImageV2}
-                            contentFit="cover"
-                            transition={200}
-                        />
-                        <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.4)']}
-                            style={styles.cardImageOverlayV2}
-                        />
-                        <View style={styles.ratingBadgeV2}>
-                            <Text style={styles.ratingTextV2}>{item.rating}</Text>
-                            <MaterialIcons name="star" size={10} color="#fff" />
-                        </View>
-                        {isDish && (
-                            <View style={styles.dishBadgeV2}>
-                                <Text style={styles.dishBadgeTextV2}>DISH</Text>
-                            </View>
-                        )}
-                        <TouchableOpacity style={styles.favBtnV2}>
-                            <Ionicons name="heart-outline" size={18} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.cardContentV2}>
-                        <View style={styles.cardHeaderV2}>
-                            <Text style={styles.cardTitleV2} numberOfLines={1}>{item.name}</Text>
-                        </View>
-
-                        <Text style={styles.cardSubtitleV2} numberOfLines={1}>
-                            {isDish ? `from ${item.restaurant_name}` : (item.cuisine_type || []).join(', ')}
-                        </Text>
-
-                        <View style={styles.cardMetricsV2}>
-                            <View style={styles.metricItemV2}>
-                                <Ionicons name="time-outline" size={14} color={COLORS.textSecondary} />
-                                <Text style={styles.metricTextV2}>{item.avg_prep_time_mins || 30} min</Text>
-                            </View>
-                            <View style={styles.metricDotV2} />
-                            <View style={styles.metricItemV2}>
-                                <Ionicons name="bicycle-outline" size={14} color={COLORS.textSecondary} />
-                                <Text style={styles.metricTextV2}>{item.delivery_fee === 0 ? 'FREE' : `₹${item.delivery_fee}`}</Text>
-                            </View>
-                            {isDish && (
-                                <>
-                                    <View style={styles.metricDotV2} />
-                                    <View style={styles.metricItemV2}>
-                                        <Text style={styles.priceTextV2}>₹{item.price}</Text>
-                                    </View>
-                                </>
-                            )}
-                        </View>
-                    </View>
-                </ScalePress>
-            </Animated.View>
-        );
-    };
-
-    const renderHeader = () => (
-        <Animated.View style={[
-            styles.headerV2,
-            {
-                opacity: fadeAnim,
-                transform: [
-                    { translateY: Animated.add(slideDownAnim, headerTranslateY) }
-                ]
-            }
-        ]}>
-            <Animated.View style={[styles.topRowV2, { opacity: headerContentOpacity }]}>
-                <View style={styles.addressContainerV2}>
-                    <View style={styles.locationCircleV2}>
-                        <MaterialIcons name="location-on" size={18} color={COLORS.white} />
-                    </View>
-                    <TouchableOpacity style={styles.addressTextWrapperV2} onPress={() => router.push('/addresses')}>
-                        <Text style={styles.deliverToV2}>DELIVERING TO</Text>
-                        <View style={styles.locationNameRowV2}>
-                            <Text style={styles.locationNameV2} numberOfLines={1}>
-                                {currentAddress?.label || 'Set Location'}
-                            </Text>
-                            <MaterialIcons name="keyboard-arrow-down" size={20} color={COLORS.primary} />
-                        </View>
-                    </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={styles.profileBtnV2} onPress={() => router.push('/profile')}>
-                    <Ionicons name="person-circle-outline" size={32} color={COLORS.textPrimary} />
-                </TouchableOpacity>
-            </Animated.View>
-
-            <Animated.View
-                style={{
-                    transform: [
-                        { translateY: searchTranslateY },
-                        { scale: searchScale }
-                    ]
-                }}
-            >
-                <TouchableOpacity
-                    style={styles.searchBarV2}
-                    onPress={() => router.push('/(tabs)/search')}
-                    activeOpacity={0.9}
-                >
-                    <Ionicons name="search" size={20} color={COLORS.primary} />
-                    <Animated.Text
-                        style={[
-                            styles.placeholderV2,
-                            { transform: [{ scale: searchPulseAnim }] }
-                        ]}
-                    >
-                        Search for "Biryani" or "Pizza"
-                    </Animated.Text>
-                    <View style={styles.searchDividerV2} />
-                    <MaterialIcons name="mic" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-            </Animated.View>
-        </Animated.View>
-    );
-
-    const renderRestaurantSkeleton = () => (
-        <View style={styles.restaurantCardV2}>
-            <Shimmer style={styles.cardImageContainerV2} />
-            <View style={styles.cardContentV2}>
-                <Shimmer style={{ height: 20, width: '60%', borderRadius: 4, marginBottom: 8 }} />
-                <Shimmer style={{ height: 14, width: '40%', borderRadius: 4, marginBottom: 12 }} />
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <Shimmer style={{ height: 14, width: 60, borderRadius: 4 }} />
-                    <Shimmer style={{ height: 14, width: 60, borderRadius: 4 }} />
-                </View>
-            </View>
-        </View>
-    );
-
+    // ── Trending (horizontal) ────────────────────────────────────────────────
     const renderTrending = () => {
-        const trendingItems = restaurants.slice(0, 5);
-        if (loading || trendingItems.length === 0) return null;
-
+        if (loading || restaurants.length === 0) return null;
         return (
-            <View style={styles.trendingSection}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Trending Near You</Text>
-                    <TouchableOpacity>
-                        <Text style={styles.seeAllText}>See All</Text>
-                    </TouchableOpacity>
+            <View style={{ marginBottom: 8 }}>
+                <View style={styles.rowHeader}>
+                    <Text style={styles.sectionTitle}>Popular Near You</Text>
                 </View>
                 <FlatList
-                    data={trendingItems}
+                    data={restaurants.slice(0, 6)}
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.trendingList}
-                    keyExtractor={item => `trending-${item.id}`}
-                    renderItem={({ item, index }) => (
+                    contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                    keyExtractor={item => `tr-${item.id}`}
+                    renderItem={({ item }) => (
                         <ScalePress
-                            style={styles.trendingCard}
-                            onPressIn={() => prefetchRestaurant(item.id)}
-                            onPress={() => router.push(`/restaurant/${item.id}`)}
-                            scaleTo={0.96}
+                            onPressIn={() => prefetch(item.id)}
+                            onPress={() => { Haptics.selectionAsync(); router.push(`/restaurant/${item.id}`); }}
                         >
-                            <ExpoImage
-                                source={{ uri: item.image_url || item.banner_url }}
-                                style={styles.trendingImage}
-                                contentFit="cover"
-                                transition={200}
-                            />
-                            <LinearGradient
-                                colors={['transparent', 'rgba(0,0,0,0.7)']}
-                                style={styles.trendingOverlay}
-                            />
-                            <View style={styles.trendingContent}>
-                                <Text style={styles.trendingName} numberOfLines={1}>{item.name}</Text>
-                                <View style={styles.trendingMeta}>
-                                    <MaterialIcons name="star" size={12} color="#FFD700" />
-                                    <Text style={styles.trendingRating}>{item.rating}</Text>
-                                    <Text style={styles.trendingTime}> • {item.avg_prep_time_mins || 30} mins</Text>
+                            <View style={styles.trendCard}>
+                                <ExpoImage
+                                    source={{ uri: item.image_url || item.banner_url }}
+                                    style={styles.trendImg}
+                                    contentFit="cover"
+                                    transition={200}
+                                />
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(0,0,0,0.72)']}
+                                    style={StyleSheet.absoluteFill}
+                                />
+                                {item.is_veg && (
+                                    <View style={styles.vegBadge}>
+                                        <Text style={styles.vegBadgeText}>VEG</Text>
+                                    </View>
+                                )}
+                                <View style={styles.trendFooter}>
+                                    <Text style={styles.trendName} numberOfLines={1}>{item.name}</Text>
+                                    <View style={styles.trendMeta}>
+                                        <MaterialIcons name="star" size={11} color="#FFD700" />
+                                        <Text style={styles.trendRating}>{item.rating}</Text>
+                                        <Text style={styles.trendDot}>·</Text>
+                                        <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.8)" />
+                                        <Text style={styles.trendTime}>{item.avg_prep_time_mins || 30}m</Text>
+                                    </View>
                                 </View>
-                            </View>
-                            <View style={styles.trendingBadge}>
-                                <Text style={styles.trendingBadgeText}>POPULAR</Text>
                             </View>
                         </ScalePress>
                     )}
@@ -589,52 +340,190 @@ export default function HomeScreen() {
         );
     };
 
+    // ── Skeleton card ─────────────────────────────────────────────────────────
+    const renderSkeleton = () => (
+        <View style={styles.restCard}>
+            <Shimmer style={{ height: 160, width: '100%' }} />
+            <View style={{ padding: 14 }}>
+                <Shimmer style={{ height: 18, width: '55%', borderRadius: 4, marginBottom: 8 }} />
+                <Shimmer style={{ height: 13, width: '35%', borderRadius: 4, marginBottom: 12 }} />
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <Shimmer style={{ height: 12, width: 60, borderRadius: 4 }} />
+                    <Shimmer style={{ height: 12, width: 60, borderRadius: 4 }} />
+                    <Shimmer style={{ height: 12, width: 60, borderRadius: 4 }} />
+                </View>
+            </View>
+        </View>
+    );
+
+    // ── Restaurant card (vertical list) ───────────────────────────────────────
+    const RestaurantCard = ({ item, index }) => {
+        const isDish = item.result_type === 'dish';
+        const isOffline = item.is_active === false;
+        const anim = useRef(new Animated.Value(0)).current;
+
+        useEffect(() => {
+            Animated.timing(anim, {
+                toValue: 1, duration: 400,
+                delay: Math.min(index, 4) * 80,
+                easing: Easing.out(Easing.quad),
+                useNativeDriver: true,
+            }).start();
+        }, []);
+
+        const handlePress = () => {
+            if (isOffline) {
+                Alert.alert(
+                    '⛔ Not Delivering',
+                    `${item.name} is currently not accepting orders. Check back later!`,
+                    [{ text: 'OK' }]
+                );
+                return;
+            }
+            Haptics.selectionAsync();
+            router.push(`/restaurant/${item.restaurant_id || item.id}`);
+        };
+
+        return (
+            <Animated.View style={{ opacity: anim, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }}>
+                <ScalePress
+                    onPressIn={() => !isOffline && prefetch(item.restaurant_id || item.id)}
+                    onPress={handlePress}
+                    onLongPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setSelectedRest(item); setShowActions(true); }}
+                    style={[styles.restCard, isOffline && { opacity: 0.7 }]}
+                >
+                    {/* Image */}
+                    <View style={styles.restImgWrap}>
+                        <ExpoImage
+                            source={{ uri: item.image_url || item.banner_url || 'https://placehold.co/600x300/D4AF37/FFFFFF?text=Restaurant' }}
+                            style={styles.restImg}
+                            contentFit="cover"
+                            transition={250}
+                        />
+                        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.28)']} style={StyleSheet.absoluteFill} />
+
+                        {/* Top-left: veg badge */}
+                        {item.is_veg && (
+                            <View style={styles.restVegBadge}>
+                                <Text style={styles.restVegText}>PURE VEG</Text>
+                            </View>
+                        )}
+                        {isDish && (
+                            <View style={[styles.restVegBadge, { backgroundColor: COLORS.primary }]}>
+                                <Text style={styles.restVegText}>DISH</Text>
+                            </View>
+                        )}
+
+                        {/* Offline overlay */}
+                        {isOffline && (
+                            <View style={styles.unavailableOverlay}>
+                                <View style={styles.unavailableBadge}>
+                                    <MaterialIcons name="block" size={14} color="#fff" />
+                                    <Text style={styles.unavailableBadgeText}>Currently Unavailable</Text>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Bottom-left: rating */}
+                        <View style={styles.ratingBadge}>
+                            <MaterialIcons name="star" size={11} color="#fff" />
+                            <Text style={styles.ratingText}>{item.rating}</Text>
+                            <Text style={styles.ratingCount}>({item.total_reviews || 0})</Text>
+                        </View>
+                    </View>
+
+                    {/* Content */}
+                    <View style={styles.restContent}>
+                        <View style={styles.restRow1}>
+                            <Text style={styles.restName} numberOfLines={1}>{item.name}</Text>
+                            {item.min_order_amount ? (
+                                <Text style={styles.restMinOrder}>Min ₹{item.min_order_amount}</Text>
+                            ) : null}
+                        </View>
+                        <Text style={styles.restCuisine} numberOfLines={1}>
+                            {isDish ? `from ${item.restaurant_name}` : (item.cuisine_type || []).join(' · ')}
+                        </Text>
+                        {isOffline ? (
+                            <Text style={styles.closedText}>🔴 Not delivering right now</Text>
+                        ) : (
+                            <View style={styles.restMetaRow}>
+                                <View style={styles.metaItem}>
+                                    <Ionicons name="time-outline" size={13} color={COLORS.textSecondary} />
+                                    <Text style={styles.metaText}>{item.avg_prep_time_mins || 30} min</Text>
+                                </View>
+                                <View style={styles.metaDot} />
+                                <View style={styles.metaItem}>
+                                    <Ionicons name="bicycle-outline" size={13} color={COLORS.textSecondary} />
+                                    <Text style={styles.metaText}>
+                                        {item.delivery_fee === 0 ? 'Free delivery' : `₹${item.delivery_fee} delivery`}
+                                    </Text>
+                                </View>
+                                {isDish && item.price ? (
+                                    <>
+                                        <View style={styles.metaDot} />
+                                        <Text style={styles.metaPrice}>₹{item.price}</Text>
+                                    </>
+                                ) : null}
+                            </View>
+                        )}
+                    </View>
+                </ScalePress>
+            </Animated.View>
+        );
+    };
+
+    // ── Main render ───────────────────────────────────────────────────────────
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
 
             {renderHeader()}
 
-            {/* MAIN SCROLL CONTENT */}
-            <Animated.ScrollView
-                style={styles.mainScroll}
+            <ScrollView
+                style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-                onScroll={Animated.event(
-                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                    { useNativeDriver: true }
-                )}
-                scrollEventThrottle={16}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />
+                }
             >
+                {/* Category chips */}
+                <FlatList
+                    data={CATEGORIES}
+                    renderItem={renderCategory}
+                    keyExtractor={i => i.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chipList}
+                    style={{ marginBottom: 20 }}
+                />
 
-                {/* Categories */}
-                <View style={styles.section}>
-                    <FlatList
-                        data={CATEGORIES}
-                        renderItem={renderCategory}
-                        keyExtractor={item => item.id}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.catList}
-                    />
+                {/* Banner */}
+                <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
+                    {renderBanner()}
                 </View>
 
-                {/* Banners */}
-                {renderBanners()}
-
-                {/* Trending Section */}
+                {/* Popular / Trending */}
                 {renderTrending()}
 
-                {/* Restaurants */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>All Restaurants</Text>
+                {/* All Restaurants */}
+                <View style={{ paddingHorizontal: 16 }}>
+                    <View style={styles.rowHeader}>
+                        <Text style={styles.sectionTitle}>
+                            {activeCategory === 'all' ? 'All Restaurants' : `${CATEGORIES.find(c => c.id === activeCategory)?.name} Places`}
+                        </Text>
+                        <Text style={styles.restCount}>{loading ? '…' : `${restaurants.length} places`}</Text>
+                    </View>
+
                     {loading ? (
-                        <>
-                            {renderRestaurantSkeleton()}
-                            {renderRestaurantSkeleton()}
-                            {renderRestaurantSkeleton()}
-                        </>
+                        <>{renderSkeleton()}{renderSkeleton()}</>
+                    ) : restaurants.length === 0 ? (
+                        <View style={styles.emptyWrap}>
+                            <Text style={styles.emptyIcon}>🍽️</Text>
+                            <Text style={styles.emptyText}>No restaurants found</Text>
+                            <Text style={styles.emptySub}>Try a different category</Text>
+                        </View>
                     ) : (
                         restaurants.map((item, index) => (
                             <RestaurantCard key={item.id} item={item} index={index} />
@@ -642,711 +531,271 @@ export default function HomeScreen() {
                     )}
                 </View>
 
-                <View style={{ height: 100 }} />
-            </Animated.ScrollView>
+                <View style={{ height: 110 }} />
+            </ScrollView>
 
-            {/* FLOATING CART BUTTON */}
-            {cartItems.length > 0 && (
+            {/* Floating cart button */}
+            {cartCount > 0 && (
                 <TouchableOpacity
-                    style={styles.fabCart}
-                    activeOpacity={0.8}
+                    style={styles.cartFab}
                     onPress={() => router.push('/cart')}
+                    activeOpacity={0.9}
                 >
-                    <View style={styles.fabContent}>
-                        <View style={styles.fabCount}>
-                            <Text style={styles.fabCountText}>{cartItems.length}</Text>
+                    <LinearGradient colors={['#D4AF37', '#A07810']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cartFabGradient}>
+                        <View style={styles.cartCount}>
+                            <Text style={styles.cartCountText}>{cartCount}</Text>
                         </View>
-                        <Text style={styles.fabText}>View Cart</Text>
-                    </View>
-                    <Ionicons name="cart" size={24} color="#fff" />
+                        <Text style={styles.cartFabText}>View Cart</Text>
+                        <Ionicons name="cart" size={20} color="#fff" />
+                    </LinearGradient>
                 </TouchableOpacity>
             )}
 
-            {/* QUICK ACTIONS MODAL */}
-            <Modal
-                visible={showQuickActions}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowQuickActions(false)}
-            >
-                <TouchableOpacity
-                    style={styles.quickModalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowQuickActions(false)}
-                >
-                    <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-                    <Animated.View style={styles.quickActionsContainer}>
-                        <Text style={styles.quickActionsTitle}>{selectedRestaurant?.name}</Text>
-                        <View style={styles.quickActionsList}>
-                            <TouchableOpacity style={styles.quickActionItem} onPress={() => {
-                                setShowQuickActions(false);
-                                router.push(`/restaurant/${selectedRestaurant?.id}`);
-                            }}>
-                                <Ionicons name="restaurant" size={20} color={COLORS.primary} />
-                                <Text style={styles.quickActionText}>View Menu</Text>
+            {/* Quick actions sheet */}
+            <Modal visible={showActions} transparent animationType="slide" onRequestClose={() => setShowActions(false)}>
+                <TouchableOpacity style={styles.sheetOverlay} activeOpacity={1} onPress={() => setShowActions(false)}>
+                    <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+                        <View style={styles.sheetHandle} />
+                        <Text style={styles.sheetTitle} numberOfLines={1}>{selectedRest?.name}</Text>
+                        {[
+                            { icon: 'restaurant-menu', color: COLORS.primary, label: 'View Menu', onPress: () => { setShowActions(false); router.push(`/restaurant/${selectedRest?.id}`); } },
+                            { icon: 'favorite-border', color: '#EF4444', label: 'Add to Favourites', onPress: () => setShowActions(false) },
+                        ].map(a => (
+                            <TouchableOpacity key={a.label} style={styles.sheetItem} onPress={a.onPress}>
+                                <View style={[styles.sheetItemIcon, { backgroundColor: a.color + '18' }]}>
+                                    <MaterialIcons name={a.icon} size={20} color={a.color} />
+                                </View>
+                                <Text style={styles.sheetItemText}>{a.label}</Text>
+                                <MaterialIcons name="chevron-right" size={20} color={COLORS.textLight} />
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.quickActionItem} onPress={() => {
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                                setShowQuickActions(false);
-                            }}>
-                                <Ionicons name="heart" size={20} color="#FF4B4B" />
-                                <Text style={styles.quickActionText}>Add to Favorites</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.quickActionItem, { borderBottomWidth: 0 }]} onPress={() => setShowQuickActions(false)}>
-                                <Ionicons name="share-social" size={20} color="#4B7BFF" />
-                                <Text style={styles.quickActionText}>Share Restaurant</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity style={styles.quickCloseBtn} onPress={() => setShowQuickActions(false)}>
-                            <Text style={styles.quickCloseText}>Close</Text>
+                        ))}
+                        <TouchableOpacity style={styles.sheetClose} onPress={() => setShowActions(false)}>
+                            <Text style={styles.sheetCloseText}>Close</Text>
                         </TouchableOpacity>
-                    </Animated.View>
+                    </View>
                 </TouchableOpacity>
             </Modal>
         </View>
     );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F2F2F2',
-    },
-    headerBackground: {
-        paddingBottom: 30, // Space for search bar overlap
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        ...SHADOWS.md,
-    },
-    headerSafeArea: {
-        paddingHorizontal: 16,
-        paddingBottom: 60,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 10,
-    },
-    locationBlock: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    locationIconBg: {
-        backgroundColor: '#fff',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    locationLabel: {
-        color: 'rgba(255,255,255,0.8)',
-        fontSize: 10,
-        fontWeight: 'bold',
-        letterSpacing: 1,
-    },
-    locationValue: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-        maxWidth: 200,
-    },
-    profileBtn: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.4)',
-    },
-    profileInitials: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 18,
-    },
-    searchContainer: {
-        position: 'absolute',
-        bottom: -24, // Half overlap
-        left: 16,
-        right: 16,
-        zIndex: 10,
-    },
-    searchBar: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        height: 50,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        gap: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: '#333',
-        height: '100%',
-    },
-    mainScroll: {
-        flex: 1,
-    },
-    scrollContent: {
-        paddingTop: 10,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    catList: {
-        paddingHorizontal: 16,
-        paddingTop: 10,
-        paddingBottom: 10,
-    },
-    categoryItem: {
-        alignItems: 'center',
-        marginRight: 16,
-        backgroundColor: '#fff',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 16,
-        minWidth: 80,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    categoryItemActive: {
-        backgroundColor: COLORS.primary,
-    },
-    categoryIcon: {
-        marginBottom: 8,
-    },
-    categoryText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#666',
-    },
-    categoryTextActive: {
-        color: '#fff',
-    },
-    bannerSection: {
-        marginHorizontal: 16,
-        marginBottom: 8,
-        borderRadius: 20,
-        overflow: 'hidden',
-        elevation: 6,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-    },
-    // Promo banner (when admin adds promos)
-    promoBannerCard: {
-        width: width - 32,
-        height: 170,
-        overflow: 'hidden',
-    },
-    promoBannerGradient: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 22,
-        paddingVertical: 18,
-    },
-    promoBannerContent: {
-        flex: 1,
-    },
-    promoBadge: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
-        marginBottom: 8,
-    },
-    promoBadgeText: {
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    promoTitle: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: '900',
-        marginBottom: 4,
-    },
-    promoSubtitle: {
-        color: 'rgba(255,255,255,0.85)',
-        fontSize: 13,
-        marginBottom: 14,
-    },
-    promoBtn: {
-        backgroundColor: '#fff',
-        paddingHorizontal: 18,
-        paddingVertical: 8,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
-    },
-    promoBtnText: {
-        color: '#B8860B',
-        fontWeight: '800',
-        fontSize: 13,
-    },
-    promoImage: {
-        width: 110,
-        height: 110,
-        resizeMode: 'contain',
-    },
-    // Welcome banner (no promos)
-    welcomeCard: {
-        height: 170,
-        justifyContent: 'flex-end',
-        overflow: 'hidden',
-    },
-    welcomeTextBlock: {
-        padding: 20,
-        paddingBottom: 36,
-        zIndex: 2,
-    },
-    welcomeEyebrow: {
-        color: 'rgba(255,215,0,0.85)',
-        fontSize: 10,
-        fontWeight: '700',
-        letterSpacing: 1.2,
-        marginBottom: 6,
-    },
-    welcomeHeading: {
-        color: '#fff',
-        fontSize: 26,
-        fontWeight: '900',
-        lineHeight: 31,
-        marginBottom: 5,
-    },
-    welcomeCaption: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 12,
-        fontWeight: '500',
-    },
-    starDot: {
-        position: 'absolute',
-        color: '#fff',
-        fontSize: 10,
-        opacity: 0.4,
-    },
-    dotsRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 10,
-        gap: 6,
-    },
-    dot2: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: 'rgba(0,0,0,0.15)',
-    },
-    dotActive: {
-        width: 20,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.primary,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontFamily: FONTS.bold,
-        color: COLORS.textPrimary,
-        marginLeft: 16,
-        marginBottom: 16,
-    },
-    // Category Circle Styles
-    categoryCircleWrapper: {
-        alignItems: 'center',
-        marginRight: 20,
-        width: 65,
-    },
-    categoryCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: COLORS.white,
-        justifyContent: 'center',
-        alignItems: 'center',
-        ...SHADOWS.sm,
-        borderWidth: 1,
-        borderColor: COLORS.borderLight,
-        marginBottom: 8,
-    },
-    categoryCircleActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
-    categoryLabel: {
-        fontSize: 11,
-        fontFamily: FONTS.medium,
-        color: COLORS.textSecondary,
-        textAlign: 'center',
-    },
-    categoryLabelActive: {
-        color: COLORS.primary,
-        fontFamily: FONTS.bold,
-    },
+    container: { flex: 1, backgroundColor: '#F5F6FA' },
+    scrollContent: { paddingTop: 8 },
 
-    // Restaurant Card V2 (Swiggy Style)
-    restaurantCardV2: {
-        marginHorizontal: 16,
-        marginBottom: 24,
+    // ─ Header ─
+    header: {
         backgroundColor: COLORS.white,
-        borderRadius: 20,
-        ...SHADOWS.md,
-        overflow: 'hidden',
-    },
-    cardImageContainerV2: {
-        width: '100%',
-        height: 160,
-    },
-    cardImageV2: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
-    cardImageOverlayV2: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    ratingBadgeV2: {
-        position: 'absolute',
-        bottom: 12,
-        left: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.success,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        gap: 2,
-    },
-    ratingTextV2: {
-        color: COLORS.white,
-        fontSize: 12,
-        fontFamily: FONTS.bold,
-    },
-    dishBadgeV2: {
-        position: 'absolute',
-        top: 12,
-        left: 12,
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    dishBadgeTextV2: {
-        color: COLORS.white,
-        fontSize: 10,
-        fontFamily: FONTS.bold,
-    },
-    // Updated Header V2
-    headerV2: {
-        paddingTop: 60,
+        paddingTop: 52,
         paddingHorizontal: 16,
-        paddingBottom: 20,
-        backgroundColor: COLORS.white,
+        paddingBottom: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
         ...SHADOWS.sm,
     },
-    topRowV2: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    addressContainerV2: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    locationCircleV2: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: COLORS.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    addressTextWrapperV2: {
-        flex: 1,
-    },
-    deliverToV2: {
-        fontSize: 10,
-        fontFamily: FONTS.bold,
-        color: COLORS.primary,
-        letterSpacing: 0.5,
-    },
-    locationNameRowV2: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 2,
-    },
-    locationNameV2: {
-        fontSize: 16,
-        fontFamily: FONTS.bold,
-        color: COLORS.textPrimary,
-        maxWidth: '80%',
-    },
-    profileBtnV2: {
-        padding: 2,
-    },
-    searchBarV2: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.white,
-        height: 48,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: COLORS.borderLight,
-        ...SHADOWS.sm,
-    },
-    placeholderV2: {
-        flex: 1,
-        marginLeft: 10,
-        fontSize: 14,
-        fontFamily: FONTS.medium,
-        color: COLORS.textLight,
-    },
-    searchDividerV2: {
-        width: 1,
-        height: 20,
-        backgroundColor: COLORS.borderLight,
-        marginHorizontal: 10,
-    },
-    favBtnV2: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    cardContentV2: {
-        padding: 16,
-    },
-    cardHeaderV2: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    cardTitleV2: {
-        fontSize: 18,
-        fontFamily: FONTS.bold,
-        color: COLORS.textPrimary,
-        flex: 1,
-    },
-    cardSubtitleV2: {
-        fontSize: 13,
-        fontFamily: FONTS.medium,
-        color: COLORS.textSecondary,
+    headerRow1: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+    greeting: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+    greetingSub: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 2 },
+    profileBtn: { marginLeft: 12 },
+    profileGradient: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    profileInitial: { fontSize: 18, fontFamily: FONTS.bold, color: COLORS.white },
+
+    // Address bar
+    addressBar: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#FBF7EC',
+        borderRadius: 12, borderWidth: 1, borderColor: COLORS.primaryLight,
+        paddingHorizontal: 12, paddingVertical: 10,
         marginBottom: 12,
     },
-    cardMetricsV2: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    addressIconWrap: {
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: COLORS.primaryLight + '60',
+        justifyContent: 'center', alignItems: 'center', marginRight: 10,
     },
-    cartViewBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    // Trending Section
-    trendingSection: {
-        marginBottom: 24,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        marginBottom: 16,
-    },
-    seeAllText: {
-        fontSize: 14,
-        fontFamily: FONTS.bold,
-        color: COLORS.primary,
-    },
-    trendingList: {
-        paddingHorizontal: 16,
-        paddingBottom: 10,
-    },
-    trendingCard: {
-        width: 260,
-        height: 160,
-        marginRight: 16,
-        borderRadius: 20,
-        overflow: 'hidden',
-        ...SHADOWS.md,
-        backgroundColor: COLORS.white,
-    },
-    trendingImage: {
-        width: '100%',
-        height: '100%',
-        resizeMode: 'cover',
-    },
-    trendingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    trendingContent: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 16,
-    },
-    trendingName: {
-        color: COLORS.white,
-        fontSize: 18,
-        fontFamily: FONTS.bold,
-        marginBottom: 4,
-    },
-    trendingMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    trendingRating: {
-        color: COLORS.white,
-        fontSize: 12,
-        fontFamily: FONTS.bold,
-        marginLeft: 4,
-    },
-    trendingTime: {
-        color: 'rgba(255,255,255,0.8)',
-        fontSize: 12,
-        fontFamily: FONTS.regular,
-    },
-    trendingBadge: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    trendingBadgeText: {
-        color: COLORS.white,
-        fontSize: 10,
-        fontFamily: FONTS.bold,
-    },
-    metricItemV2: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metricTextV2: {
-        fontSize: 12,
-        fontFamily: FONTS.bold,
-        color: COLORS.textPrimary,
-    },
-    metricDotV2: {
-        width: 3,
-        height: 3,
-        borderRadius: 1.5,
-        backgroundColor: COLORS.textLight,
-        marginHorizontal: 10,
-    },
-    priceTextV2: {
-        fontSize: 14,
-        fontFamily: FONTS.bold,
-        color: COLORS.primary,
-    },
+    addressLabel: { fontSize: 9, fontFamily: FONTS.bold, color: COLORS.primary, letterSpacing: 0.8 },
+    addressName: { fontSize: 13, fontFamily: FONTS.medium, color: COLORS.textPrimary, marginTop: 1 },
 
-    fabCart: {
-        position: 'absolute',
-        bottom: 30,
-        alignSelf: 'center',
-        backgroundColor: COLORS.primary,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 14,
-        borderRadius: 30,
+    // Search bar
+    searchBar: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: COLORS.white,
+        borderRadius: 12, borderWidth: 1, borderColor: '#EBEBEB',
+        paddingHorizontal: 14, height: 46,
+        ...SHADOWS.sm,
+    },
+    searchPlaceholder: { flex: 1, marginLeft: 10, fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textLight },
+    searchDivider: { width: 1, height: 18, backgroundColor: '#E5E5E5', marginHorizontal: 10 },
+
+    // ─ Category chips ─
+    chipList: { paddingHorizontal: 16, gap: 8 },
+    chip: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: COLORS.white,
+        borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border,
+        paddingHorizontal: 14, paddingVertical: 8,
+        ...SHADOWS.sm,
+    },
+    chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+    chipText: { fontSize: 13, fontFamily: FONTS.semiBold, color: COLORS.textSecondary },
+    chipTextActive: { color: COLORS.white },
+
+    // ─ Banner ─
+    bannerWrap: { marginBottom: 4 },
+    bannerCard: {
+        width: width - 32,
+        borderRadius: 18,
+        flexDirection: 'row', alignItems: 'center',
+        padding: 20, minHeight: 150,
+        overflow: 'hidden',
         ...SHADOWS.gold,
-        gap: 12,
     },
-    fabContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    defaultBanner: { width: '100%' },
+    bannerBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        paddingHorizontal: 10, paddingVertical: 4,
+        borderRadius: 20, marginBottom: 10,
     },
-    fabCount: {
-        backgroundColor: '#fff',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
+    bannerBadgeText: { color: '#fff', fontSize: 10, fontFamily: FONTS.bold, letterSpacing: 0.5 },
+    bannerTitle: { color: '#fff', fontSize: 22, fontFamily: FONTS.black, lineHeight: 28, marginBottom: 6 },
+    bannerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontFamily: FONTS.regular, marginBottom: 14 },
+    bannerBtn: { backgroundColor: '#fff', alignSelf: 'flex-start', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+    bannerBtnText: { color: COLORS.primaryDark, fontFamily: FONTS.bold, fontSize: 12 },
+    bannerImg: { width: 100, height: 100 },
+    bannerIconBlock: { justifyContent: 'center', alignItems: 'center', width: 100 },
+    dotsRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 10, gap: 5 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.border },
+    dotActive: { width: 20, backgroundColor: COLORS.primary },
+
+    // ─ Section headers ─
+    rowHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingHorizontal: 16, marginBottom: 12,
     },
-    fabCountText: {
-        color: COLORS.primary,
-        fontWeight: 'bold',
-        fontSize: 12,
+    sectionTitle: { fontSize: 17, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+    restCount: { fontSize: 12, fontFamily: FONTS.medium, color: COLORS.textSecondary },
+
+    // ─ Trending cards ─
+    trendCard: {
+        width: 200, height: 130, borderRadius: 14,
+        overflow: 'hidden', backgroundColor: '#eee',
+        ...SHADOWS.md,
     },
-    fabText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
+    trendImg: { width: '100%', height: '100%' },
+    vegBadge: {
+        position: 'absolute', top: 8, left: 8,
+        backgroundColor: COLORS.success,
+        paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6,
     },
-    // Quick Actions
-    quickModalOverlay: {
-        flex: 1,
+    vegBadgeText: { color: '#fff', fontSize: 9, fontFamily: FONTS.bold },
+    trendFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 10 },
+    trendName: { color: '#fff', fontSize: 14, fontFamily: FONTS.bold, marginBottom: 3 },
+    trendMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    trendRating: { color: '#fff', fontSize: 11, fontFamily: FONTS.bold },
+    trendDot: { color: 'rgba(255,255,255,0.6)', marginHorizontal: 2 },
+    trendTime: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontFamily: FONTS.regular },
+
+    // ─ Restaurant cards ─
+    restCard: {
+        backgroundColor: COLORS.white,
+        borderRadius: 16, overflow: 'hidden',
+        marginBottom: 16, ...SHADOWS.md,
+    },
+    restImgWrap: { width: '100%', height: 160, position: 'relative' },
+    restImg: { width: '100%', height: '100%' },
+    restVegBadge: {
+        position: 'absolute', top: 10, left: 10,
+        backgroundColor: COLORS.success,
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    },
+    restVegText: { color: '#fff', fontSize: 9, fontFamily: FONTS.bold, letterSpacing: 0.5 },
+    ratingBadge: {
+        position: 'absolute', bottom: 10, left: 10,
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: COLORS.success,
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+    },
+    ratingText: { color: '#fff', fontSize: 12, fontFamily: FONTS.bold },
+    ratingCount: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontFamily: FONTS.regular },
+    restContent: { padding: 14 },
+    restRow1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 },
+    restName: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.textPrimary, flex: 1 },
+    restMinOrder: { fontSize: 11, fontFamily: FONTS.medium, color: COLORS.textLight, marginLeft: 8 },
+    restCuisine: { fontSize: 12, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginBottom: 10, textTransform: 'capitalize' },
+    restMetaRow: { flexDirection: 'row', alignItems: 'center' },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaText: { fontSize: 12, fontFamily: FONTS.medium, color: COLORS.textSecondary },
+    metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.textLight, marginHorizontal: 8 },
+    metaPrice: { fontSize: 13, fontFamily: FONTS.bold, color: COLORS.primary },
+
+    // ─ Offline restaurant overlay ─
+    unavailableOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.45)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
     },
-    quickActionsContainer: {
-        width: '100%',
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 20,
-        ...SHADOWS.lg,
-    },
-    quickActionsTitle: {
-        fontSize: 18,
-        fontFamily: FONTS.bold,
-        color: COLORS.textPrimary,
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    quickActionsList: {
-        backgroundColor: '#F8F9FA',
-        borderRadius: 16,
-        overflow: 'hidden',
-        marginBottom: 20,
-    },
-    quickActionItem: {
+    unavailableBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        gap: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.borderLight,
+        gap: 5,
+        backgroundColor: 'rgba(0,0,0,0.75)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
-    quickActionText: {
-        fontSize: 16,
-        fontFamily: FONTS.medium,
-        color: COLORS.textPrimary,
+    unavailableBadgeText: { color: '#fff', fontSize: 12, fontFamily: FONTS.bold },
+    closedText: { fontSize: 12, fontFamily: FONTS.medium, color: '#E53935', marginTop: 2 },
+
+    // ─ Empty state ─
+    emptyWrap: { alignItems: 'center', paddingVertical: 48 },
+    emptyIcon: { fontSize: 48, marginBottom: 12 },
+    emptyText: { fontSize: 16, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+    emptySub: { fontSize: 13, fontFamily: FONTS.regular, color: COLORS.textSecondary, marginTop: 4 },
+
+    // ─ Cart FAB ─
+    cartFab: {
+        position: 'absolute', bottom: 28, alignSelf: 'center',
+        borderRadius: 30, overflow: 'hidden',
+        ...SHADOWS.gold,
     },
-    quickCloseBtn: {
-        padding: 12,
-        alignItems: 'center',
+    cartFabGradient: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 22, paddingVertical: 14, gap: 10,
     },
-    quickCloseText: {
-        fontSize: 16,
-        fontFamily: FONTS.bold,
-        color: COLORS.textSecondary,
+    cartCount: {
+        backgroundColor: 'rgba(255,255,255,0.28)',
+        width: 24, height: 24, borderRadius: 12,
+        justifyContent: 'center', alignItems: 'center',
     },
+    cartCountText: { color: '#fff', fontSize: 12, fontFamily: FONTS.bold },
+    cartFabText: { color: '#fff', fontSize: 15, fontFamily: FONTS.bold },
+
+    // ─ Quick actions sheet ─
+    sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
+    sheet: {
+        backgroundColor: COLORS.white,
+        borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        padding: 20, paddingBottom: 36,
+    },
+    sheetHandle: {
+        width: 40, height: 4, borderRadius: 2,
+        backgroundColor: COLORS.border, alignSelf: 'center', marginBottom: 16,
+    },
+    sheetTitle: { fontSize: 17, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 16 },
+    sheetItem: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F5F5F5',
+    },
+    sheetItemIcon: {
+        width: 38, height: 38, borderRadius: 12,
+        justifyContent: 'center', alignItems: 'center', marginRight: 14,
+    },
+    sheetItemText: { flex: 1, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.textPrimary },
+    sheetClose: { marginTop: 14, alignItems: 'center', paddingVertical: 12 },
+    sheetCloseText: { fontSize: 15, fontFamily: FONTS.bold, color: COLORS.textSecondary },
 });

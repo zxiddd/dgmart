@@ -16,6 +16,7 @@ const { initializeSocket } = require('./socket/socketHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const firebaseAuthRoutes = require('./routes/firebase-auth.routes');
 const userRoutes = require('./routes/user.routes');
 const restaurantRoutes = require('./routes/restaurant.routes');
 const menuRoutes = require('./routes/menu.routes');
@@ -134,6 +135,7 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', firebaseAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);

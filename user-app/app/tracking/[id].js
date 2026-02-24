@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES, SHADOWS, ORDER_STATUS_CONFIG } from '../../src/config/theme';
@@ -287,6 +287,15 @@ export default function TrackingScreen() {
                         <Text style={styles.cancelLinkTextV2}>Need to cancel? Click here</Text>
                     </TouchableOpacity>
                 )}
+
+                {/* Contact Support */}
+                <TouchableOpacity
+                    style={styles.supportBtn}
+                    onPress={() => Linking.openURL('tel:+917773994316')}
+                >
+                    <MaterialIcons name="headset-mic" size={18} color={COLORS.primary} />
+                    <Text style={styles.supportBtnText}>Contact Support</Text>
+                </TouchableOpacity>
 
                 <View style={{ height: 60 }} />
             </ScrollView>
@@ -585,5 +594,33 @@ const styles = StyleSheet.create({
         color: COLORS.textLight,
         textAlign: 'center',
         lineHeight: 16,
+    },
+    supportBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 16,
+        paddingVertical: 12,
+        backgroundColor: COLORS.white,
+        borderRadius: 50,
+        borderWidth: 1.5,
+        borderColor: COLORS.primary + '40',
+        ...SHADOWS.sm,
+    },
+    supportBtnText: {
+        fontSize: 14,
+        fontFamily: FONTS.bold,
+        color: COLORS.primary,
+    },
+    cancelLinkV2: {
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    cancelLinkTextV2: {
+        fontSize: 13,
+        fontFamily: FONTS.medium,
+        color: COLORS.error,
+        textDecorationLine: 'underline',
     },
 });

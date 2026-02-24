@@ -9,16 +9,28 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.degloormart
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 15000,
+    timeout: 20000,
     headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach Supabase auth token to every request
+// Cache token in memory to avoid AsyncStorage hit on every request
+let _cachedToken = null;
+
+export function updateCachedToken(token) {
+    _cachedToken = token || null;
+}
+
+// Attach Supabase auth token to every request (uses cache when available)
 api.interceptors.request.use(async (config) => {
+    if (_cachedToken) {
+        config.headers.Authorization = `Bearer ${_cachedToken}`;
+        return config;
+    }
     try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
-            config.headers.Authorization = `Bearer ${session.access_token}`;
+            _cachedToken = session.access_token;
+            config.headers.Authorization = `Bearer ${_cachedToken}`;
         }
     } catch (err) {
         console.log('Token error:', err);
