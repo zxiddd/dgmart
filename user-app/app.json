@@ -16,6 +16,7 @@
     "android": {
       "package": "com.zaddy.degloormart",
       "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.jpg",
         "backgroundColor": "#FFFFFF"
