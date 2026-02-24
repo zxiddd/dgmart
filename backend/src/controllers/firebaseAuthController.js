@@ -26,24 +26,26 @@ const firebaseLogin = async (req, res) => {
 
         // 2. Find or create Supabase user by phone / email
         let supabaseUserId;
+        let authEmail;
         let isNewUser = false;
 
         // Try to find existing user by phone
         const existingRes = await db.query(
-            'SELECT id FROM users WHERE phone = $1 LIMIT 1',
+            'SELECT id, email FROM users WHERE phone = $1 LIMIT 1',
             [normalizedPhone]
         );
 
         if (existingRes.rows.length > 0) {
             // Existing user
             supabaseUserId = existingRes.rows[0].id;
+            authEmail = existingRes.rows[0].email;
         } else {
             // New user — create in Supabase auth + users table
             isNewUser = true;
 
             // Create Supabase auth user using admin (service role)
-            const authEmail = email || `${normalizedPhone}@degloormart.phone`;
-            const tempPassword = `fb_${uid}_${Date.now()}`;
+            authEmail = email || `${normalizedPhone}@degloormart.phone`;
+            const tempPassword = `fb_${uid}_${Date.now()}!A`;
 
             const { data: authData, error: authError } = await supabase.auth.admin.createUser({
                 email: authEmail,
@@ -65,6 +67,7 @@ const firebaseLogin = async (req, res) => {
                 );
                 if (found) {
                     supabaseUserId = found.id;
+                    authEmail = found.email;
                 } else {
                     console.error('Supabase auth create error:', authError.message);
                     return res.status(500).json({ success: false, message: 'Failed to create account.' });
@@ -80,7 +83,7 @@ const firebaseLogin = async (req, res) => {
                  ON CONFLICT (id) DO UPDATE SET phone = $4, firebase_uid = $5`,
                 [
                     supabaseUserId,
-                    email || `${normalizedPhone}@degloormart.phone`,
+                    authEmail,
                     name || fbName || `User${normalizedPhone?.slice(-4) || ''}`,
                     normalizedPhone,
                     uid,
@@ -89,13 +92,28 @@ const firebaseLogin = async (req, res) => {
         }
 
         // 3. Generate a Supabase access token (short-lived session)
-        const { data: sessionData, error: sessionError } = await supabase.auth.admin.createSession({
-            user_id: supabaseUserId,
+        // Since Supabase SDK doesn't have an admin.createSession, we temporarily reset the 
+        // user's password to a secure random string and perform a standard sign-in to get the JWTs.
+        const dynamicPassword = `Fb!${uid}_${Date.now()}`;
+
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+            supabaseUserId,
+            { password: dynamicPassword }
+        );
+
+        if (updateError) {
+            console.error('Failed to rotate password for session generation:', updateError.message);
+            return res.status(500).json({ success: false, message: 'Failed to generate session.' });
+        }
+
+        // Now perform sign in
+        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: dynamicPassword,
         });
 
         if (sessionError || !sessionData?.session) {
-            // Fallback: try generating a magic link token via signInWithOtp approach
-            console.error('Session create error:', sessionError?.message);
+            console.error('Session sign-in error:', sessionError?.message);
             return res.status(500).json({ success: false, message: 'Failed to create session.' });
         }
 
