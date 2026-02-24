@@ -76,19 +76,31 @@ const firebaseLogin = async (req, res) => {
                 supabaseUserId = authData.user.id;
             }
 
-            // Upsert into public.users
-            await db.query(
-                `INSERT INTO users (id, email, name, phone, role, firebase_uid)
-                 VALUES ($1, $2, $3, $4, 'customer', $5)
-                 ON CONFLICT (id) DO UPDATE SET phone = $4, firebase_uid = $5`,
-                [
-                    supabaseUserId,
-                    authEmail,
-                    name || fbName || `User${normalizedPhone?.slice(-4) || ''}`,
-                    normalizedPhone,
-                    uid,
-                ]
-            );
+            // The Supabase trigger handle_new_user likely already inserted this user into public.users.
+            // Try updating first to prevent 'ON CONFLICT' unique constraint quirks with the email column.
+            try {
+                const updateRes = await db.query(
+                    `UPDATE users SET phone = $1, firebase_uid = $2 WHERE id = $3 RETURNING id`,
+                    [normalizedPhone, uid, supabaseUserId]
+                );
+
+                if (updateRes.rows.length === 0) {
+                    await db.query(
+                        `INSERT INTO users (id, email, name, phone, role, firebase_uid)
+                         VALUES ($1, $2, $3, $4, 'customer', $5)`,
+                        [
+                            supabaseUserId,
+                            authEmail,
+                            name || fbName || `User${normalizedPhone?.slice(-4) || ''}`,
+                            normalizedPhone,
+                            uid,
+                        ]
+                    );
+                }
+            } catch (dbErr) {
+                console.error('DB Upsert error for public.users:', dbErr);
+                throw new Error('Database error during user creation: ' + dbErr.message);
+            }
         }
 
         // 3. Generate a Supabase access token (short-lived session)
