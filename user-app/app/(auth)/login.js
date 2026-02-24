@@ -81,7 +81,7 @@ export default function LoginScreen() {
             const idToken = await userCredential.user.getIdToken();
 
             // Exchange Firebase ID token for a Supabase session via our backend
-            const res = await fetch(`${API_BASE}/api/auth/firebase`, {
+            const res = await fetch(`${API_BASE}/auth/firebase`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ firebase_token: idToken }),
