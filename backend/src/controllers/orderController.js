@@ -60,6 +60,25 @@ const createOrder = async (req, res, next) => {
             });
         }
 
+        // Insert variables to check verification
+        const { rows: configRows } = await client.query("SELECT value FROM platform_settings WHERE key = 'global'");
+        let requireVerification = true; // safe default
+        if (configRows.length > 0 && configRows[0].value && configRows[0].value.require_phone_verification !== undefined) {
+            requireVerification = configRows[0].value.require_phone_verification;
+        }
+
+        const { rows: userRows } = await client.query("SELECT is_phone_verified FROM users WHERE id = $1", [userId]);
+        const isVerified = userRows.length > 0 ? userRows[0].is_phone_verified : false;
+
+        if (requireVerification && !isVerified) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({
+                success: false,
+                requiresPhoneVerification: true,
+                message: 'Phone number verification is required before placing an order.'
+            });
+        }
+
         // Update user phone if it was provided and different
         if (phone && phone !== userRes.rows[0]?.phone) {
             await client.query('UPDATE users SET phone = $1 WHERE id = $2', [phone, userId]);

@@ -176,4 +176,183 @@ const verifyOtp = async (req, res) => {
     }
 };
 
-module.exports = { sendOtp, verifyOtp };
+/**
+ * POST /api/auth/register-with-password
+ * Register a user with name, phone, password, and optionally an OTP
+ */
+const registerWithPassword = async (req, res) => {
+    try {
+        const { name, phone, password, otp } = req.body;
+        if (!name || !phone || !password) {
+            return res.status(400).json({ success: false, message: 'Name, Phone, and Password are required.' });
+        }
+
+        const normalizedPhone = phone.replace(/^\+91/, '');
+
+        // 1. Check Platform Settings for mandatory OTP
+        const { rows: configRows } = await db.query("SELECT value FROM platform_settings WHERE key = 'global'");
+        let isPhoneVerified = false;
+
+        let requireVerification = true;
+        if (configRows.length > 0 && configRows[0].value && configRows[0].value.require_phone_verification !== undefined) {
+            requireVerification = configRows[0].value.require_phone_verification;
+        }
+
+        // 2. If OTP is required OR provided, verify it
+        if (requireVerification || otp) {
+            if (!otp) {
+                return res.status(400).json({ success: false, message: 'Phone verification is mandatory. OTP is missing.' });
+            }
+            const stored = otpStore.get(phone);
+            if (!stored) {
+                return res.status(400).json({ success: false, message: 'No OTP found. Please request a new one.' });
+            }
+            if (Date.now() > stored.expiresAt) {
+                otpStore.delete(phone);
+                return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+            }
+            if (stored.otp !== otp.toString()) {
+                return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+            }
+            // OTP is valid
+            otpStore.delete(phone);
+            isPhoneVerified = true;
+        }
+
+        // 3. Create User in Supabase Auth
+        const supabase = require('../config/supabase');
+        const authEmail = `${normalizedPhone}@degloormart.phone`;
+
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: authEmail,
+            password: password,
+            phone: phone,
+            user_metadata: { name: name, phone: normalizedPhone },
+            email_confirm: true,
+        });
+
+        if (authError) {
+            console.error('Create Supabase user error:', authError.message);
+            if (authError.message.includes('already exists')) {
+                return res.status(400).json({ success: false, message: 'An account with this phone number already exists.' });
+            }
+            return res.status(500).json({ success: false, message: 'Failed to create account.' });
+        }
+
+        const supabaseUserId = authData.user.id;
+
+        // 4. Insert into public.users
+        await db.query(
+            `INSERT INTO users (id, email, name, phone, role, is_phone_verified)
+             VALUES ($1, $2, $3, $4, 'customer', $5)
+             ON CONFLICT (id) DO UPDATE SET phone = $4, name = $3, is_phone_verified = $5`,
+            [supabaseUserId, authEmail, name, normalizedPhone, isPhoneVerified]
+        );
+
+        // 5. Sign in to generate session
+        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: password,
+        });
+
+        if (sessionError || !sessionData?.session) {
+            console.error('Create session error:', sessionError?.message);
+            return res.status(500).json({ success: false, message: 'Account created but failed to generate session. Please login.' });
+        }
+
+        return res.json({
+            success: true,
+            data: {
+                access_token: sessionData.session.access_token,
+                refresh_token: sessionData.session.refresh_token,
+                user_id: supabaseUserId,
+                is_new_user: true,
+            },
+        });
+    } catch (err) {
+        console.error('Register error:', err);
+        return res.status(500).json({ success: false, message: err.message || 'Registration failed.' });
+    }
+};
+
+/**
+ * POST /api/auth/login-with-password
+ * Login a user with phone and password
+ */
+const loginWithPassword = async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+        if (!phone || !password) {
+            return res.status(400).json({ success: false, message: 'Phone and Password are required.' });
+        }
+
+        const normalizedPhone = phone.replace(/^\+91/, '');
+        const authEmail = `${normalizedPhone}@degloormart.phone`;
+
+        const supabase = require('../config/supabase');
+        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: password,
+        });
+
+        if (sessionError || !sessionData?.session) {
+            console.error('Login error:', sessionError?.message);
+            return res.status(401).json({ success: false, message: 'Invalid phone number or password.' });
+        }
+
+        return res.json({
+            success: true,
+            data: {
+                access_token: sessionData.session.access_token,
+                refresh_token: sessionData.session.refresh_token,
+                user_id: sessionData.user.id,
+                is_new_user: false,
+            },
+        });
+    } catch (err) {
+        console.error('Login error:', err);
+        return res.status(500).json({ success: false, message: err.message || 'Login failed.' });
+    }
+};
+
+/**
+ * POST /api/auth/verify-existing-phone
+ * Verify OTP for an ALREADY logged in user (used during checkout block)
+ */
+const verifyExistingPhone = async (req, res) => {
+    try {
+        // req.user should exist since this route will be protected
+        const userId = req.user?.id;
+        const { phone, otp } = req.body;
+
+        if (!userId || !phone || !otp) {
+            return res.status(400).json({ success: false, message: 'User ID, Phone, and OTP are required.' });
+        }
+
+        const stored = otpStore.get(phone);
+        if (!stored) {
+            return res.status(400).json({ success: false, message: 'No OTP found. Please request a new one.' });
+        }
+        if (Date.now() > stored.expiresAt) {
+            otpStore.delete(phone);
+            return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+        }
+        if (stored.otp !== otp.toString()) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+        }
+
+        // OTP valid
+        otpStore.delete(phone);
+
+        // Update DB
+        const normalizedPhone = phone.replace(/^\+91/, '');
+        await db.query('UPDATE users SET is_phone_verified = true, phone = $1 WHERE id = $2', [normalizedPhone, userId]);
+
+        return res.json({ success: true, message: 'Phone number verified successfully.' });
+    } catch (err) {
+        console.error('Verify existing phone error:', err);
+        return res.status(500).json({ success: false, message: err.message || 'Verification failed.' });
+    }
+};
+
+module.exports = { sendOtp, verifyOtp, registerWithPassword, loginWithPassword, verifyExistingPhone };

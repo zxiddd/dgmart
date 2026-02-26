@@ -1,23 +1,45 @@
-﻿import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Animated, StatusBar, Image, ActivityIndicator } from 'react-native';
+﻿import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Animated, StatusBar, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
 import { supabase } from '../../src/config/supabase';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../src/config/theme';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 
 export default function LoginScreen() {
     const router = useRouter();
 
+    const [isLogin, setIsLogin] = useState(true);
     const [countryCode, setCountryCode] = useState('+91');
+    const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
+    const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     // UI states
-    const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+    const [step, setStep] = useState('form'); // 'form' or 'otp'
     const [loading, setLoading] = useState(false);
+    const [requireVerification, setRequireVerification] = useState(true); // default safe
     const fadeAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        fetchConfig();
+    }, []);
+
+    const fetchConfig = async () => {
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
+            const res = await fetch(`${API_URL}/app/config`);
+            const data = await res.json();
+            if (data.success && data.data && data.data.require_phone_verification !== undefined) {
+                setRequireVerification(data.data.require_phone_verification);
+            }
+        } catch (error) {
+            console.error('Failed to fetch config', error);
+        }
+    };
 
     const animateTransition = (callback) => {
         Animated.sequence([
@@ -27,16 +49,68 @@ export default function LoginScreen() {
         setTimeout(callback, 150);
     };
 
-    const handleSendOtp = async () => {
-        if (!phone || phone.length < 10) {
-            Toast.show({ type: 'error', text1: 'Invalid Phone', text2: 'Please enter a valid phone number' });
+    const toggleMode = () => {
+        animateTransition(() => {
+            setIsLogin(!isLogin);
+            setStep('form');
+            setOtp('');
+            setPassword('');
+        });
+    };
+
+    const handleLogin = async () => {
+        if (!phone || phone.length < 10 || !password) {
+            Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please enter phone and password' });
             return;
         }
 
         setLoading(true);
         try {
             const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
+            const res = await fetch(`${API_URL}/auth/login-with-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone, password })
+            });
+            const data = await res.json();
 
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Invalid credentials');
+            }
+
+            const { error: sessionError } = await supabase.auth.setSession({
+                access_token: data.data.access_token,
+                refresh_token: data.data.refresh_token,
+            });
+
+            if (sessionError) throw new Error('Failed to set local session');
+
+            Toast.show({ type: 'success', text1: 'Welcome back!' });
+        } catch (error) {
+            Toast.show({ type: 'error', text1: 'Login Failed', text2: error.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegisterAction = async () => {
+        if (!name || !phone || phone.length < 10 || !password) {
+            Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill all fields to register' });
+            return;
+        }
+
+        if (requireVerification && step === 'form') {
+            handleSendOtp();
+        } else {
+            handleFinalRegister();
+        }
+    };
+
+    const handleSendOtp = async () => {
+        setLoading(true);
+        try {
+            const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
             const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
             const res = await fetch(`${API_URL}/auth/send-otp`, {
                 method: 'POST',
@@ -58,8 +132,8 @@ export default function LoginScreen() {
         }
     };
 
-    const handleVerifyOtp = async () => {
-        if (!otp || otp.length < 6) {
+    const handleFinalRegister = async () => {
+        if (requireVerification && (!otp || otp.length < 6)) {
             Toast.show({ type: 'error', text1: 'Invalid OTP', text2: 'Please enter the 6-digit OTP' });
             return;
         }
@@ -67,37 +141,29 @@ export default function LoginScreen() {
         setLoading(true);
         try {
             const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
-
             const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
-            const res = await fetch(`${API_URL}/auth/verify-otp`, {
+            const res = await fetch(`${API_URL}/auth/register-with-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: fullPhone, otp })
+                body: JSON.stringify({ name, phone: fullPhone, password, otp: requireVerification ? otp : undefined })
             });
 
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Invalid OTP code');
+                throw new Error(data.message || 'Registration failed');
             }
 
-            // Set the session manually in Supabase client
             const { error: sessionError } = await supabase.auth.setSession({
                 access_token: data.data.access_token,
                 refresh_token: data.data.refresh_token,
             });
 
-            if (sessionError) {
-                console.error("Supabase Set Session Error:", sessionError);
-                throw new Error('Failed to initialize local session');
-            }
+            if (sessionError) throw new Error('Failed to set local session');
 
-            Toast.show({ type: 'success', text1: 'Success', text2: 'Logged in successfully' });
-            // Note: The auth state listener in useAuthStore will catch the session
-            // and automatically update the state, redirecting you.
-
+            Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Account created successfully' });
         } catch (error) {
-            Toast.show({ type: 'error', text1: 'Verification Failed', text2: error.message });
+            Toast.show({ type: 'error', text1: 'Registration Failed', text2: error.message });
         } finally {
             setLoading(false);
         }
@@ -107,90 +173,140 @@ export default function LoginScreen() {
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-                <View style={styles.header}>
-                    <View style={styles.logoCircle}>
-                        <Image
-                            source={require('../../assets/logo.png')}
-                            style={styles.logoImage}
-                            resizeMode="contain"
-                        />
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+                    <View style={styles.header}>
+                        <View style={styles.logoCircle}>
+                            <Image
+                                source={require('../../assets/logo.png')}
+                                style={styles.logoImage}
+                                resizeMode="contain"
+                            />
+                        </View>
+                        <Text style={styles.appName}>DEGLOOR MART</Text>
+                        <Text style={styles.title}>{step === 'otp' ? 'Verify Phone' : isLogin ? 'Welcome Back' : 'Create Account'}</Text>
+                        <Text style={styles.subtitle}>
+                            {step === 'otp' ? `Enter the OTP sent to ${countryCode} ${phone}` : isLogin ? 'Login with your phone and password' : 'Sign up to get started'}
+                        </Text>
                     </View>
-                    <Text style={styles.appName}>DEGLOOR MART</Text>
-                    <Text style={styles.title}>{step === 'phone' ? 'Welcome' : 'Verify Phone'}</Text>
-                    <Text style={styles.subtitle}>
-                        {step === 'phone' ? 'Enter your phone number to continue' : `Enter the OTP sent to ${countryCode} ${phone}`}
-                    </Text>
-                </View>
 
-                <View style={styles.form}>
-                    {step === 'phone' ? (
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>PHONE NUMBER</Text>
-                            <View style={styles.phoneInputWrapper}>
-                                <TouchableOpacity style={styles.countryCodeBtn}>
-                                    <Text style={styles.countryCodeText}>{countryCode}</Text>
-                                    <MaterialIcons name="arrow-drop-down" size={20} color={COLORS.textSecondary} />
-                                </TouchableOpacity>
-                                <View style={styles.divider} />
-                                <TextInput
-                                    style={styles.phoneInput}
-                                    placeholder="98765 43210"
-                                    placeholderTextColor={COLORS.textLight}
-                                    value={phone}
-                                    onChangeText={setPhone}
-                                    keyboardType="phone-pad"
-                                    maxLength={10}
-                                    editable={!loading}
-                                />
-                            </View>
-                        </View>
-                    ) : (
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>OTP CODE</Text>
-                            <View style={styles.inputWrapper}>
-                                <MaterialIcons name="message" size={20} color={COLORS.primary} />
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="Enter 6-digit OTP"
-                                    placeholderTextColor={COLORS.textLight}
-                                    value={otp}
-                                    onChangeText={setOtp}
-                                    keyboardType="number-pad"
-                                    maxLength={6}
-                                    editable={!loading}
-                                />
-                            </View>
-                        </View>
-                    )}
+                    <View style={styles.form}>
+                        {step === 'form' ? (
+                            <>
+                                {!isLogin && (
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.label}>FULL NAME</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <MaterialIcons name="person-outline" size={20} color={COLORS.primary} />
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="John Doe"
+                                                placeholderTextColor={COLORS.textLight}
+                                                value={name}
+                                                onChangeText={setName}
+                                                editable={!loading}
+                                            />
+                                        </View>
+                                    </View>
+                                )}
 
-                    <TouchableOpacity
-                        style={[styles.button, loading && styles.buttonDisabled]}
-                        onPress={step === 'phone' ? handleSendOtp : handleVerifyOtp}
-                        disabled={loading}
-                        activeOpacity={0.8}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color={COLORS.white} />
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.label}>PHONE NUMBER</Text>
+                                    <View style={styles.phoneInputWrapper}>
+                                        <TouchableOpacity style={styles.countryCodeBtn}>
+                                            <Text style={styles.countryCodeText}>{countryCode}</Text>
+                                            <MaterialIcons name="arrow-drop-down" size={20} color={COLORS.textSecondary} />
+                                        </TouchableOpacity>
+                                        <View style={styles.divider} />
+                                        <TextInput
+                                            style={styles.phoneInput}
+                                            placeholder="98765 43210"
+                                            placeholderTextColor={COLORS.textLight}
+                                            value={phone}
+                                            onChangeText={setPhone}
+                                            keyboardType="phone-pad"
+                                            maxLength={10}
+                                            editable={!loading}
+                                        />
+                                    </View>
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.label}>PASSWORD</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter your password"
+                                            placeholderTextColor={COLORS.textLight}
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            secureTextEntry={!showPassword}
+                                            editable={!loading}
+                                        />
+                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                                            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </>
                         ) : (
-                            <Text style={styles.buttonText}>{step === 'phone' ? 'SEND OTP' : 'VERIFY & CONTINUE'}</Text>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>OTP CODE</Text>
+                                <View style={styles.inputWrapper}>
+                                    <MaterialIcons name="message" size={20} color={COLORS.primary} />
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter 6-digit OTP"
+                                        placeholderTextColor={COLORS.textLight}
+                                        value={otp}
+                                        onChangeText={setOtp}
+                                        keyboardType="number-pad"
+                                        maxLength={6}
+                                        editable={!loading}
+                                    />
+                                </View>
+                            </View>
                         )}
-                    </TouchableOpacity>
 
-                    {step === 'otp' && (
                         <TouchableOpacity
-                            style={styles.changePhoneBtn}
-                            onPress={() => animateTransition(() => {
-                                setStep('phone');
-                                setOtp('');
-                            })}
+                            style={[styles.button, loading && styles.buttonDisabled]}
+                            onPress={step === 'otp' ? handleFinalRegister : isLogin ? handleLogin : handleRegisterAction}
                             disabled={loading}
+                            activeOpacity={0.8}
                         >
-                            <Text style={styles.changePhoneText}>Change Phone Number</Text>
+                            {loading ? (
+                                <ActivityIndicator color={COLORS.white} />
+                            ) : (
+                                <Text style={styles.buttonText}>
+                                    {step === 'otp' ? 'VERIFY & REGISTER' : isLogin ? 'LOGIN' : (requireVerification ? 'SEND OTP & REGISTER' : 'REGISTER')}
+                                </Text>
+                            )}
                         </TouchableOpacity>
-                    )}
-                </View>
-            </Animated.View>
+
+                        {step === 'form' && (
+                            <TouchableOpacity style={styles.switchModeBtn} onPress={toggleMode} disabled={loading}>
+                                <Text style={styles.switchModeText}>
+                                    {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {step === 'otp' && (
+                            <TouchableOpacity
+                                style={styles.switchModeBtn}
+                                onPress={() => animateTransition(() => {
+                                    setStep('form');
+                                    setOtp('');
+                                })}
+                                disabled={loading}
+                            >
+                                <Text style={styles.switchModeText}>Back to Registration</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </Animated.View>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
@@ -199,6 +315,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
+    },
+    scrollContent: {
+        flexGrow: 1,
         justifyContent: 'center',
     },
     content: {
@@ -245,7 +364,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     form: {
-        gap: 20,
+        gap: 16,
     },
     inputContainer: {
         gap: 8,
@@ -255,6 +374,17 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.bold,
         color: COLORS.textSecondary,
         letterSpacing: 1,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: SIZES.radius,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        height: 50,
+        paddingHorizontal: 14,
+        ...SHADOWS.sm,
     },
     phoneInputWrapper: {
         flexDirection: 'row',
@@ -290,23 +420,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         height: '100%',
     },
-    inputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        borderRadius: SIZES.radius,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        height: 50,
-        paddingHorizontal: 14,
-        ...SHADOWS.sm,
-    },
     input: {
         flex: 1,
         fontFamily: FONTS.medium,
         fontSize: SIZES.base,
         color: COLORS.textPrimary,
         marginLeft: 10,
+        height: '100%',
+    },
+    eyeBtn: {
+        padding: 5,
     },
     button: {
         backgroundColor: COLORS.primary,
@@ -327,11 +450,12 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         letterSpacing: 1,
     },
-    changePhoneBtn: {
+    switchModeBtn: {
         alignItems: 'center',
         paddingVertical: 10,
+        marginTop: 5,
     },
-    changePhoneText: {
+    switchModeText: {
         color: COLORS.textSecondary,
         fontFamily: FONTS.medium,
         fontSize: SIZES.sm,

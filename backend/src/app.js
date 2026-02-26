@@ -27,6 +27,7 @@ const adminRoutes = require('./routes/admin.routes');
 const supportRoutes = require('./routes/support.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const bannerRoutes = require('./routes/banner.routes');
+const configRoutes = require('./routes/config.routes');
 
 // Initialize Express app
 const app = express();
@@ -146,6 +147,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/app', configRoutes);
 
 // ============ ERROR HANDLING ============
 

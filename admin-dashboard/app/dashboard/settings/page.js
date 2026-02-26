@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Save, Truck, DollarSign } from 'lucide-react';
+import { Save, Truck, DollarSign, ShieldCheck } from 'lucide-react';
 
 export default function SettingsPage() {
     const [settings, setSettings] = useState({
         rider_fee_per_order: 0,
         platform_fee_percentage: 0,
         delivery_fee_base: 0,
+        require_phone_verification: true,
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -142,6 +143,39 @@ export default function SettingsPage() {
                                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                             <p className="text-xs text-gray-500 mt-1">Tax applied to order subtotal.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Auth Settings Card */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
+                        <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                            <ShieldCheck size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-800">Authentication</h2>
+                            <p className="text-sm text-gray-500">Manage user login and verification</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Mandatory Phone Verification
+                                </label>
+                                <p className="text-xs text-gray-500 mt-1">Require users to verify their phone to complete registration or ordering.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={settings.require_phone_verification ?? true}
+                                    onChange={(e) => setSettings({ ...settings, require_phone_verification: e.target.checked })}
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
                         </div>
                     </div>
                 </div>

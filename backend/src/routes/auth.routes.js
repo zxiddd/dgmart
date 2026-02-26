@@ -13,4 +13,9 @@ router.post('/register', authenticate, validate(registerSchema), userController.
 router.post('/send-otp', otpController.sendOtp);
 router.post('/verify-otp', otpController.verifyOtp);
 
+// Email+Password / Phone+Password flows
+router.post('/register-with-password', otpController.registerWithPassword);
+router.post('/login-with-password', otpController.loginWithPassword);
+router.post('/verify-existing-phone', authenticate, otpController.verifyExistingPhone);
+
 module.exports = router;

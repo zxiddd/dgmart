@@ -27,6 +27,12 @@ export default function CartScreen() {
     const [previewLoading, setPreviewLoading] = useState(false);
     const [orderStatus, setOrderStatus] = useState('idle'); // 'idle' | 'processing' | 'success'
 
+    // Verification Modal State
+    const [showVerificationModal, setShowVerificationModal] = useState(false);
+    const [verificationStep, setVerificationStep] = useState('phone'); // 'phone' | 'otp'
+    const [verificationOtp, setVerificationOtp] = useState('');
+    const [verificationLoading, setVerificationLoading] = useState(false);
+
     // Resolve phone from any available source
     const resolvedPhone = profile?.phone || currentAddress?.phone || user?.user_metadata?.phone || '';
     const [phone, setPhone] = useState(resolvedPhone);
@@ -101,6 +107,75 @@ export default function CartScreen() {
             setOrderStatus('idle');
             router.replace('/(tabs)/orders');
         }, 2500);
+    };
+
+    const handleSendVerificationOtp = async () => {
+        const orderPhone = currentAddress?.phone || profile?.phone || user?.user_metadata?.phone || phone;
+        if (!orderPhone || orderPhone.length < 10) {
+            Toast.show({ type: 'error', text1: 'Invalid Phone Number' });
+            return;
+        }
+
+        setVerificationLoading(true);
+        try {
+            // Assume it's an Indian number for now in the UI logic, prepending +91 if needed or just letting backend handle
+            const res = await orderAPI.preview({}).catch(() => { }); // Dummy to keep imports same, wait actually we need fetch
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
+            const reqRes = await fetch(`${API_URL}/auth/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: `+91${orderPhone.replace(/\D/g, '')}` })
+            });
+
+            const data = await reqRes.json();
+            if (!reqRes.ok || !data.success) throw new Error(data.message || 'Failed to send OTP');
+
+            Toast.show({ type: 'success', text1: 'OTP Sent' });
+            setVerificationStep('otp');
+        } catch (error) {
+            Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: error.message });
+        } finally {
+            setVerificationLoading(false);
+        }
+    };
+
+    const handleVerifyPhoneOtp = async () => {
+        if (!verificationOtp || verificationOtp.length < 6) {
+            Toast.show({ type: 'error', text1: 'Enter valid OTP' });
+            return;
+        }
+
+        const orderPhone = currentAddress?.phone || profile?.phone || user?.user_metadata?.phone || phone;
+        setVerificationLoading(true);
+        try {
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            const reqRes = await fetch(`${API_URL}/auth/verify-existing-phone`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ phone: `+91${orderPhone.replace(/\D/g, '')}`, otp: verificationOtp })
+            });
+
+            const data = await reqRes.json();
+            if (!reqRes.ok || !data.success) throw new Error(data.message || 'Invalid OTP');
+
+            Toast.show({ type: 'success', text1: 'Phone Verified successfully' });
+            setShowVerificationModal(false);
+            setVerificationOtp('');
+
+            // Retry placing order automatically
+            handlePlaceOrder();
+
+        } catch (error) {
+            Toast.show({ type: 'error', text1: 'Verification Failed', text2: error.message });
+        } finally {
+            setVerificationLoading(false);
+        }
     };
 
     const handlePlaceOrder = () => {
@@ -188,6 +263,11 @@ export default function CartScreen() {
                 }
             } catch (err) {
                 setOrderStatus('idle');
+                if (err.data?.requiresPhoneVerification) {
+                    setShowVerificationModal(true);
+                    setVerificationStep('phone');
+                    return;
+                }
                 const msg = err.response?.data?.message || err.message || 'Something went wrong';
                 Alert.alert('Order Failed', msg);
             }
@@ -216,6 +296,63 @@ export default function CartScreen() {
     // ─── Main Cart ─────────────────────────────────────────────────────────────
     return (
         <View style={styles.container}>
+            {/* Phone Verification Modal */}
+            <Modal visible={showVerificationModal} transparent animationType="slide">
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowVerificationModal(false)}>
+                                <MaterialIcons name="close" size={24} color={COLORS.textSecondary} />
+                            </TouchableOpacity>
+
+                            <View style={styles.modalHeader}>
+                                <Ionicons name="phone-portrait-outline" size={40} color={COLORS.primary} style={{ marginBottom: 12 }} />
+                                <Text style={styles.modalTitle}>Verify Phone Number</Text>
+                                <Text style={styles.modalSubtitle}>
+                                    {verificationStep === 'phone'
+                                        ? `Please verify your phone number (${phone}) to place this order.`
+                                        : `Enter the OTP sent to ${phone}`}
+                                </Text>
+                            </View>
+
+                            {verificationStep === 'otp' && (
+                                <View style={styles.modalInputWrapper}>
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        placeholder="Enter 6-digit OTP"
+                                        keyboardType="number-pad"
+                                        maxLength={6}
+                                        value={verificationOtp}
+                                        onChangeText={setVerificationOtp}
+                                        editable={!verificationLoading}
+                                    />
+                                </View>
+                            )}
+
+                            <TouchableOpacity
+                                style={[styles.modalBtn, verificationLoading && { opacity: 0.7 }]}
+                                onPress={verificationStep === 'phone' ? handleSendVerificationOtp : handleVerifyPhoneOtp}
+                                disabled={verificationLoading}
+                            >
+                                {verificationLoading ? (
+                                    <ActivityIndicator color={COLORS.white} />
+                                ) : (
+                                    <Text style={styles.modalBtnText}>
+                                        {verificationStep === 'phone' ? 'Send OTP' : 'Verify & Place Order'}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+
+                            {verificationStep === 'otp' && (
+                                <TouchableOpacity style={{ alignItems: 'center', marginTop: 15 }} onPress={() => setVerificationStep('phone')} disabled={verificationLoading}>
+                                    <Text style={{ color: COLORS.textSecondary, fontFamily: FONTS.medium, fontSize: SIZES.sm }}>Resend OTP / Change Number</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -488,9 +625,86 @@ const styles = StyleSheet.create({
     emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#F5F6FA' },
     emptyImage: { width: 140, height: 140, opacity: 0.6, marginBottom: 20 },
     emptyTitle: { fontSize: 20, fontFamily: FONTS.bold, color: COLORS.textPrimary, marginBottom: 6 },
-    emptySubtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 28 },
-    browseBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: 50, ...SHADOWS.orange },
-    browseBtnText: { color: COLORS.white, fontFamily: FONTS.bold, fontSize: 15 },
+    emptySubtitle: {
+        fontSize: SIZES.base,
+        color: COLORS.textSecondary,
+        fontFamily: FONTS.regular,
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    browseBtn: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: SIZES.radius,
+    },
+    browseBtnText: {
+        color: COLORS.white,
+        fontSize: SIZES.base,
+        fontFamily: FONTS.bold,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: COLORS.background,
+        borderTopLeftRadius: SIZES.radiusLg,
+        borderTopRightRadius: SIZES.radiusLg,
+        padding: SIZES.paddingLg,
+        minHeight: 350,
+    },
+    modalCloseBtn: {
+        alignSelf: 'flex-end',
+        padding: 5,
+    },
+    modalHeader: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        fontSize: SIZES.lg,
+        fontFamily: FONTS.bold,
+        color: COLORS.textPrimary,
+        marginBottom: 8,
+    },
+    modalSubtitle: {
+        fontSize: SIZES.base,
+        fontFamily: FONTS.regular,
+        color: COLORS.textSecondary,
+        textAlign: 'center',
+        paddingHorizontal: 20,
+    },
+    modalInputWrapper: {
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: SIZES.radius,
+        height: 50,
+        marginBottom: 20,
+        paddingHorizontal: 15,
+        justifyContent: 'center',
+    },
+    modalInput: {
+        fontFamily: FONTS.medium,
+        fontSize: SIZES.base,
+        color: COLORS.textPrimary,
+        height: '100%',
+    },
+    modalBtn: {
+        backgroundColor: COLORS.primary,
+        height: 50,
+        borderRadius: SIZES.radius,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...SHADOWS.gold,
+    },
+    modalBtnText: {
+        color: COLORS.white,
+        fontFamily: FONTS.bold,
+        fontSize: SIZES.base,
+    },
 
     // Header
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 52, paddingBottom: 14, backgroundColor: COLORS.white, ...SHADOWS.sm },

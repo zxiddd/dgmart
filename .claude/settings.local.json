@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\(''project_id:'', d.get\\(''project_id''\\)\\); print\\(''client_email:'', d.get\\(''client_email''\\)\\)\")",
+      "Bash(powershell -Command \"[System.Environment]::SetEnvironmentVariable\\(''JAVA_HOME'', ''C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-17.0.18.8-hotspot'', ''User''\\)\")",
+      "Bash(powershell -Command \":*)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Eclipse Adoptium/jdk-17.0.18.8-hotspot\")",
+      "Bash(export JAVA_HOME)",
+      "Bash(java -version)"
+    ]
+  }
+}
