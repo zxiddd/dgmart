@@ -150,8 +150,14 @@ const verifyOtp = async (req, res) => {
             return res.status(500).json({ success: false, message: 'Failed to generate session.' });
         }
 
+        // Create a user-facing Supabase client with the ANON_KEY for sign-ins
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUserClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
         // Now perform sign in
-        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+        const { data: sessionData, error: sessionError } = await supabaseUserClient.auth.signInWithPassword({
             email: authEmail,
             password: dynamicPassword,
         });
@@ -260,8 +266,14 @@ const registerWithPassword = async (req, res) => {
             [supabaseUserId, email, name, normalizedPhone, isPhoneVerified]
         );
 
+        // Create a user-facing Supabase client with the ANON_KEY for sign-ins
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUserClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
         // 6. Sign in to generate session
-        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+        const { data: sessionData, error: sessionError } = await supabaseUserClient.auth.signInWithPassword({
             email: email,
             password: password,
         });
@@ -310,8 +322,13 @@ const loginWithPassword = async (req, res) => {
             authEmail = `${normalizedPhone}@degloormart.phone`;
         }
 
-        const supabase = require('../config/supabase');
-        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+        // Create a user-facing Supabase client with the ANON_KEY for sign-ins
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUserClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        const { data: sessionData, error: sessionError } = await supabaseUserClient.auth.signInWithPassword({
             email: authEmail,
             password: password,
         });
