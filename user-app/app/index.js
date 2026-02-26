@@ -18,10 +18,6 @@ export default function Index() {
         return <Redirect href="/(auth)/login" />;
     }
 
-    if (!isRegistered) {
-        return <Redirect href="/(auth)/register" />;
-    }
-
     return <Redirect href="/(tabs)/home" />;
 }
 

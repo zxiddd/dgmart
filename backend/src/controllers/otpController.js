@@ -35,8 +35,22 @@ const sendOtp = async (req, res) => {
         // For now, log to console (replace with actual SMS sending)
         console.log(`📱 OTP for ${phone}: ${otp}`);
 
-        // TODO: Integrate with an SMS provider (Twilio, MSG91, etc.)
-        // await twilioClient.messages.create({ body: `Your Degloor Mart OTP is: ${otp}`, from: '+1...', to: phone });
+        // Integrate APIHome SMS provider
+        const APIHOME_KEY = process.env.APIHOME_KEY || "YOUR_API_KEY";
+        const cleanPhone = phone.replace(/^\+91/, ''); // assuming Indian numbers
+        const smsUrl = `https://apihome.in/panel/api/bulksms/?key=${APIHOME_KEY}&mobile=${cleanPhone}&otp=${otp}`;
+
+        try {
+            console.log(`Sending SMS to ${cleanPhone} via apihome.in...`);
+            const smsResponse = await fetch(smsUrl);
+            const smsResult = await smsResponse.text();
+            console.log('SMS Provider Response:', smsResult);
+        } catch (smsError) {
+            console.error('Failed to call SMS API:', smsError);
+            if (process.env.NODE_ENV === 'production' && !APIHOME_KEY.includes('YOUR_API')) {
+                return res.status(500).json({ success: false, message: 'Failed to send SMS via provider.' });
+            }
+        }
 
         return res.json({ success: true, message: 'OTP sent successfully.' });
     } catch (err) {
@@ -121,9 +135,25 @@ const verifyOtp = async (req, res) => {
             );
         }
 
-        // Create a Supabase session for this user
-        const { data: sessionData, error: sessionError } = await supabase.auth.admin.createSession({
-            user_id: supabaseUserId,
+        // 3. Generate a Supabase access token (short-lived session)
+        // Since Supabase SDK doesn't have an admin.createSession, we temporarily reset the 
+        // user's password to a secure random string and perform a standard sign-in to get the JWTs.
+        const dynamicPassword = `Otp!${normalizedPhone}_${Date.now()}A`;
+
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+            supabaseUserId,
+            { password: dynamicPassword }
+        );
+
+        if (updateError) {
+            console.error('Failed to rotate password for session generation:', updateError.message);
+            return res.status(500).json({ success: false, message: 'Failed to generate session.' });
+        }
+
+        // Now perform sign in
+        const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: dynamicPassword,
         });
 
         if (sessionError || !sessionData?.session) {
