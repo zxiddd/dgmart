@@ -251,7 +251,11 @@ const platformSettingsSchema = Joi.object({
     min_order_amount: Joi.number().min(0).optional(),
     referral_bonus: Joi.number().min(0).optional(),
     wallet_max_balance: Joi.number().min(0).optional(),
-});
+    // Added for admin dashboard sync
+    rider_fee_per_order: Joi.number().min(0).optional(),
+    platform_fee_percentage: Joi.number().min(0).max(100).optional(),
+    require_phone_verification: Joi.boolean().optional(),
+}).unknown(true); // Allow unknown settings to be saved dynamically without dropping them
 
 module.exports = {
     registerSchema,
