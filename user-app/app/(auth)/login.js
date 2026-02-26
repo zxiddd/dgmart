@@ -13,6 +13,7 @@ export default function LoginScreen() {
     const [isLogin, setIsLogin] = useState(true);
     const [countryCode, setCountryCode] = useState('+91');
     const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
@@ -95,8 +96,9 @@ export default function LoginScreen() {
     };
 
     const handleRegisterAction = async () => {
-        if (!name || !phone || phone.length < 10 || !password) {
-            Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill all fields to register' });
+        const emailValid = /\S+@\S+\.\S+/.test(email);
+        if (!name || !email || !emailValid || !phone || phone.length < 10 || !password) {
+            Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill all fields correctly to register' });
             return;
         }
 
@@ -145,7 +147,7 @@ export default function LoginScreen() {
             const res = await fetch(`${API_URL}/auth/register-with-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, phone: fullPhone, password, otp: requireVerification ? otp : undefined })
+                body: JSON.stringify({ name, email, phone: fullPhone, password, otp: requireVerification ? otp : undefined })
             });
 
             const data = await res.json();
@@ -194,18 +196,36 @@ export default function LoginScreen() {
                         {step === 'form' ? (
                             <>
                                 {!isLogin && (
-                                    <View style={styles.inputContainer}>
-                                        <Text style={styles.label}>FULL NAME</Text>
-                                        <View style={styles.inputWrapper}>
-                                            <MaterialIcons name="person-outline" size={20} color={COLORS.primary} />
-                                            <TextInput
-                                                style={styles.input}
-                                                placeholder="John Doe"
-                                                placeholderTextColor={COLORS.textLight}
-                                                value={name}
-                                                onChangeText={setName}
-                                                editable={!loading}
-                                            />
+                                    <View>
+                                        <View style={styles.inputContainer}>
+                                            <Text style={styles.label}>FULL NAME</Text>
+                                            <View style={styles.inputWrapper}>
+                                                <MaterialIcons name="person-outline" size={20} color={COLORS.primary} />
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="John Doe"
+                                                    placeholderTextColor={COLORS.textLight}
+                                                    value={name}
+                                                    onChangeText={setName}
+                                                    editable={!loading}
+                                                />
+                                            </View>
+                                        </View>
+                                        <View style={styles.inputContainer}>
+                                            <Text style={styles.label}>EMAIL</Text>
+                                            <View style={styles.inputWrapper}>
+                                                <MaterialIcons name="mail-outline" size={20} color={COLORS.primary} />
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="john@example.com"
+                                                    placeholderTextColor={COLORS.textLight}
+                                                    value={email}
+                                                    onChangeText={setEmail}
+                                                    keyboardType="email-address"
+                                                    autoCapitalize="none"
+                                                    editable={!loading}
+                                                />
+                                            </View>
                                         </View>
                                     </View>
                                 )}

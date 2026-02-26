@@ -182,9 +182,9 @@ const verifyOtp = async (req, res) => {
  */
 const registerWithPassword = async (req, res) => {
     try {
-        const { name, phone, password, otp } = req.body;
-        if (!name || !phone || !password) {
-            return res.status(400).json({ success: false, message: 'Name, Phone, and Password are required.' });
+        const { name, phone, email, password, otp } = req.body;
+        if (!name || !phone || !password || !email) {
+            return res.status(400).json({ success: false, message: 'Name, Phone, Email, and Password are required.' });
         }
 
         const normalizedPhone = phone.replace(/^\+91/, '');
@@ -219,14 +219,25 @@ const registerWithPassword = async (req, res) => {
             isPhoneVerified = true;
         }
 
-        // 3. Create User in Supabase Auth
+        // 3. Check if phone is already registered in DB
+        const existCheck = await db.query('SELECT * FROM users WHERE phone = $1 OR email = $2', [normalizedPhone, email]);
+        if (existCheck.rows.length > 0) {
+            const existing = existCheck.rows[0];
+            if (existing.phone === normalizedPhone) {
+                return res.status(400).json({ success: false, message: 'An account with this phone number already exists.' });
+            }
+            if (existing.email === email) {
+                return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
+            }
+        }
+
+        // 4. Create User in Supabase Auth
         const supabase = require('../config/supabase');
-        const authEmail = `${normalizedPhone}@degloormart.phone`;
 
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: authEmail,
+            email: email,
             password: password,
-            phone: phone,
+            phone: phone, // Pass E.164 phone
             user_metadata: { name: name, phone: normalizedPhone },
             email_confirm: true,
         });
@@ -234,24 +245,24 @@ const registerWithPassword = async (req, res) => {
         if (authError) {
             console.error('Create Supabase user error:', authError.message);
             if (authError.message.includes('already exists')) {
-                return res.status(400).json({ success: false, message: 'An account with this phone number already exists.' });
+                return res.status(400).json({ success: false, message: 'An account with this phone or email already exists.' });
             }
             return res.status(500).json({ success: false, message: 'Failed to create account.' });
         }
 
         const supabaseUserId = authData.user.id;
 
-        // 4. Insert into public.users
+        // 5. Insert into public.users
         await db.query(
             `INSERT INTO users (id, email, name, phone, role, is_phone_verified)
              VALUES ($1, $2, $3, $4, 'customer', $5)
-             ON CONFLICT (id) DO UPDATE SET phone = $4, name = $3, is_phone_verified = $5`,
-            [supabaseUserId, authEmail, name, normalizedPhone, isPhoneVerified]
+             ON CONFLICT (id) DO UPDATE SET phone = $4, name = $3, email = $2, is_phone_verified = $5`,
+            [supabaseUserId, email, name, normalizedPhone, isPhoneVerified]
         );
 
-        // 5. Sign in to generate session
+        // 6. Sign in to generate session
         const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
-            email: authEmail,
+            email: email,
             password: password,
         });
 
@@ -287,7 +298,17 @@ const loginWithPassword = async (req, res) => {
         }
 
         const normalizedPhone = phone.replace(/^\+91/, '');
-        const authEmail = `${normalizedPhone}@degloormart.phone`;
+
+        // Lookup the user's email by their phone number from our users table
+        const { rows } = await db.query('SELECT email FROM users WHERE phone = $1', [normalizedPhone]);
+
+        let authEmail;
+        if (rows.length > 0 && rows[0].email) {
+            authEmail = rows[0].email;
+        } else {
+            // Fallback to legacy proxy email for older users
+            authEmail = `${normalizedPhone}@degloormart.phone`;
+        }
 
         const supabase = require('../config/supabase');
         const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
