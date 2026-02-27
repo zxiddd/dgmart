@@ -6,6 +6,7 @@ import { useSocket } from '@/context/SocketContext';
 import { Power, MapPin, DollarSign, CheckCircle, Package, Phone, KeyRound } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import PushNotificationManager from '@/components/PushNotificationManager';
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -62,6 +63,14 @@ export default function DashboardPage() {
         return () => { socket.off('new_assignment'); socket.off('assignment_status_update'); };
     }, [socket, fetchData]);
 
+    // Auto-refresh every 30 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchData();
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [fetchData]);
+
     const toggleStatus = async () => {
         try {
             const res = await api.put('/delivery/toggle-online');
@@ -104,9 +113,22 @@ export default function DashboardPage() {
     };
 
     if (loading) return (
-        <div className="p-8 text-center space-y-3">
-            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-gray-500 font-medium">Loading dashboard...</p>
+        <div className="p-4 space-y-6 animate-pulse">
+            <div className="flex justify-between items-center">
+                <div className="space-y-2">
+                    <div className="h-6 w-32 bg-gray-200 rounded-lg" />
+                    <div className="h-4 w-48 bg-gray-100 rounded-lg" />
+                </div>
+                <div className="h-10 w-24 bg-gray-200 rounded-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="h-24 bg-orange-50/50 rounded-2xl border border-orange-100" />
+                <div className="h-24 bg-blue-50/50 rounded-2xl border border-blue-100" />
+            </div>
+            <div className="space-y-4">
+                <div className="h-6 w-24 bg-gray-200 rounded-lg" />
+                <div className="h-48 bg-gray-50 rounded-2xl border border-gray-100" />
+            </div>
         </div>
     );
 
@@ -114,18 +136,23 @@ export default function DashboardPage() {
 
     return (
         <div className="p-4 space-y-5 pb-10">
-            <header className="flex justify-between items-center">
+            <header className="flex justify-between items-center bg-gray-900 -mx-4 -mt-4 p-5 rounded-b-[2rem] shadow-xl text-white">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-900">Hello, {user?.email?.split('@')[0] || 'Partner'}!</h1>
-                    <p className="text-sm text-gray-500">{isOnline ? '🟢 Searching for orders...' : '🔴 Go online to start'}</p>
+                    <h1 className="text-xl font-bold">Hello, {user?.email?.split('@')[0] || 'Partner'}!</h1>
+                    <div className="mt-1">
+                        <PushNotificationManager />
+                    </div>
                 </div>
-                <button
-                    onClick={toggleStatus}
-                    className={`px-5 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${isOnline ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-200 text-gray-600'}`}
-                >
-                    <Power size={16} />
-                    {isOnline ? 'ONLINE' : 'OFFLINE'}
-                </button>
+                <div className="flex flex-col items-end gap-3">
+                    <button
+                        onClick={toggleStatus}
+                        className={`px-5 py-2.5 rounded-full font-bold text-xs flex items-center gap-2 transition-all ${isOnline ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' : 'bg-white/10 text-white/60 border border-white/10'}`}
+                    >
+                        <Power size={14} />
+                        {isOnline ? 'ONLINE' : 'OFFLINE'}
+                    </button>
+                    <p className="text-[10px] font-medium opacity-60 uppercase tracking-wider">{isOnline ? 'Searching...' : 'Offline'}</p>
+                </div>
             </header>
 
             {/* Stats Cards */}
@@ -155,8 +182,8 @@ export default function DashboardPage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <span className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${activeAssignment.status === 'assigned' ? 'bg-yellow-100 text-yellow-700' :
-                                        activeAssignment.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-purple-100 text-purple-700'
+                                    activeAssignment.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-purple-100 text-purple-700'
                                     }`}>
                                     {activeAssignment.status === 'picked_up' ? '🚴 Riding to Customer' :
                                         activeAssignment.status === 'accepted' ? '📦 Head to Restaurant' : '🔔 New Order!'}

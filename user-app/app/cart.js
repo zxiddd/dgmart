@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, StyleSheet, LayoutAnimation, Platform, UIManager, TextInput, Modal, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, StyleSheet, LayoutAnimation, Platform, UIManager, TextInput, Modal, Dimensions, KeyboardAvoidingView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';

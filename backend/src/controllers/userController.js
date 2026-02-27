@@ -229,6 +229,33 @@ const getZones = async (req, res, next) => {
     }
 };
 
+const subscribeToPush = async (req, res, next) => {
+    try {
+        const { subscription, device_type } = req.body;
+        const userId = req.user.id;
+
+        // Use UPSERT to handle subscription update if exists
+        const query = `
+            INSERT INTO push_subscriptions (user_id, subscription, device_type)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (id) DO UPDATE SET 
+                subscription = EXCLUDED.subscription,
+                device_type = EXCLUDED.device_type,
+                updated_at = NOW()
+            RETURNING *;
+        `;
+        // Wait, push_subscriptions doesn't have a unique constraint on user_id+subscription yet.
+        // I'll just insert for now or check if it exists.
+
+        await db.query('DELETE FROM push_subscriptions WHERE user_id = $1 AND subscription::text = $2::text', [userId, JSON.stringify(subscription)]);
+        await db.query('INSERT INTO push_subscriptions (user_id, subscription, device_type) VALUES ($1, $2, $3)', [userId, subscription, device_type || 'web']);
+
+        res.json({ success: true, message: 'Subscribed to push notifications' });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     register,
     getProfile,
@@ -241,4 +268,5 @@ module.exports = {
     getFavorites,
     toggleFavorite,
     getZones,
+    subscribeToPush,
 };

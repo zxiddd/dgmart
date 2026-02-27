@@ -1,7 +1,9 @@
 const db = require('../config/db');
 const { ORDER_STATUS, PAYMENT_STATUS, PAYMENT_METHOD } = require('../config/constants');
-const { generateOrderNumber, calculateDistance, calculateDeliveryFee, estimateDeliveryTime } = require('../utils/helpers');
-// const { createNotification } = require('../socket/socketHandler'); // Ensure correct path
+const { generateOrderNumber, calculateDeliveryFee, estimateDeliveryTime } = require('../utils/helpers');
+// const { sendPushNotification } = require('../services/firebaseService');
+const { sendWebPush } = require('../services/webPushService');
+const { calculateDistance } = require('../utils/helpers');
 const Razorpay = require('razorpay');
 const config = require('../config/env');
 const fs = require('fs');
@@ -647,6 +649,18 @@ const assignDeliveryPartner = async (orderId, order, client) => {
             } else {
                 console.error('Socket.io instance (global.io) not found!');
             }
+
+            // 4. Notify Partner via Web Push
+            await sendWebPush(
+                bestPartner.user_id,
+                '🛵 New Order Assigned!',
+                `Order #${order.order_number} from ${restaurant.name} is assigned to you.`,
+                {
+                    assignment_id: assignment.id,
+                    order_id: orderId,
+                    url: '/dashboard'
+                }
+            );
 
             // Create persistent notification
             await client.query(`

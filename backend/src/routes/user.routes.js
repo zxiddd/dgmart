@@ -31,4 +31,7 @@ router.put('/notifications/read-all', authenticate, supportController.markAllNot
 // Zones
 router.get('/zones', authenticate, userController.getZones);
 
+// Push Notifications
+router.post('/push-subscribe', authenticate, userController.subscribeToPush);
+
 module.exports = router;

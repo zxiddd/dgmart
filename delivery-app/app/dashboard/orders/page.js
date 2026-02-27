@@ -26,26 +26,21 @@ export default function OrdersPage() {
         }
     };
 
+    // Auto-refresh every 30 seconds
     useEffect(() => {
         fetchOrders();
+        const interval = setInterval(() => {
+            fetchOrders();
+        }, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     // Socket listener for new assignments
     useEffect(() => {
         if (!socket) return;
-
-        socket.on('new_assignment', () => {
-            fetchOrders();
-        });
-
-        socket.on('assignment_status_update', () => {
-            fetchOrders();
-        });
-
-        return () => {
-            socket.off('new_assignment');
-            socket.off('assignment_status_update');
-        };
+        socket.on('new_assignment', () => { fetchOrders(); toast.success('🛵 New Order Assigned!'); });
+        socket.on('assignment_status_update', () => { fetchOrders(); });
+        return () => { socket.off('new_assignment'); socket.off('assignment_status_update'); };
     }, [socket]);
 
     const handleAccept = async (assignmentId) => {
@@ -72,7 +67,14 @@ export default function OrdersPage() {
         }
     };
 
-    if (loading) return <div className="p-10 text-center">Loading active orders...</div>;
+    if (loading && assignments.length === 0) return (
+        <div className="p-4 space-y-6 animate-pulse">
+            <div className="h-8 w-40 bg-gray-200 rounded-lg" />
+            {[1, 2].map(i => (
+                <div key={i} className="h-48 bg-gray-50 rounded-2xl border border-gray-100" />
+            ))}
+        </div>
+    );
 
     return (
         <div className="p-4 space-y-4 pb-24">
@@ -90,8 +92,8 @@ export default function OrdersPage() {
                         <div key={assign.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm relative overflow-hidden">
                             {/* Status Badge */}
                             <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg ${assign.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
-                                    assign.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-                                        assign.status === 'picked_up' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100'
+                                assign.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
+                                    assign.status === 'picked_up' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100'
                                 }`}>
                                 {assign.status.replace('_', ' ').toUpperCase()}
                             </div>

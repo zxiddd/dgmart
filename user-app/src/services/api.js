@@ -13,24 +13,27 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
-// Cache token in memory to avoid AsyncStorage hit on every request
-let _cachedToken = null;
+let currentToken = null;
 
-export function updateCachedToken(token) {
-    _cachedToken = token || null;
-}
+export const setApiToken = (token) => {
+    currentToken = token;
+};
 
-// Attach Supabase auth token to every request (uses cache when available)
+// Attach Supabase auth token to every request
 api.interceptors.request.use(async (config) => {
-    if (_cachedToken) {
-        config.headers.Authorization = `Bearer ${_cachedToken}`;
-        return config;
-    }
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-            _cachedToken = session.access_token;
-            config.headers.Authorization = `Bearer ${_cachedToken}`;
+        if (currentToken) {
+            console.log(`📡 [API] Request: ${config.url} (Using memory token)`);
+            config.headers.Authorization = `Bearer ${currentToken}`;
+        } else {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+                console.log(`📡 [API] Request: ${config.url} (Using session token)`);
+                currentToken = session.access_token;
+                config.headers.Authorization = `Bearer ${session.access_token}`;
+            } else {
+                console.log(`📡 [API] Request: ${config.url} (No token found)`);
+            }
         }
     } catch (err) {
         console.log('Token error:', err);
@@ -44,7 +47,8 @@ api.interceptors.response.use(
     (error) => {
         // If 401, token is definitely invalid/expired
         if (error.response?.status === 401) {
-            console.log('🚪 Session Expired (401). Forcing logout...');
+            console.log(`🚪 401 Unauthorized: ${error.config?.url}. Forcing logout...`);
+            setApiToken(null);
             supabase.auth.signOut();
         }
 

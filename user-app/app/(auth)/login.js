@@ -2,6 +2,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Animated, StatusBar, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
+import { setApiToken } from '../../src/services/api';
 import { supabase } from '../../src/config/supabase';
 import { COLORS, FONTS, SIZES, SHADOWS } from '../../src/config/theme';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -80,6 +81,9 @@ export default function LoginScreen() {
                 throw new Error(data.message || 'Invalid credentials');
             }
 
+            // INSTANTLY configure the api interceptor to use the token
+            setApiToken(data.data.access_token);
+
             const { error: sessionError } = await supabase.auth.setSession({
                 access_token: data.data.access_token,
                 refresh_token: data.data.refresh_token,
@@ -156,12 +160,18 @@ export default function LoginScreen() {
                 throw new Error(data.message || 'Registration failed');
             }
 
+            // INSTANTLY configure the api interceptor to use the token
+            setApiToken(data.data.access_token);
+
             const { error: sessionError } = await supabase.auth.setSession({
                 access_token: data.data.access_token,
                 refresh_token: data.data.refresh_token,
             });
 
             if (sessionError) throw new Error('Failed to set local session');
+
+            // Set flag so home screen knows to route to addresses
+            useAuthStore.setState({ justRegistered: true });
 
             Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Account created successfully' });
         } catch (error) {

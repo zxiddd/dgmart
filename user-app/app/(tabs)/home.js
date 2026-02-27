@@ -92,12 +92,40 @@ const ScalePress = ({ children, onPress, onPressIn, onLongPress, style, scaleTo 
 export default function HomeScreen() {
     const router = useRouter();
     const profile = useAuthStore(s => s.profile);
+    const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+    const fetchProfile = useAuthStore(s => s.fetchProfile);
     const user = useAuthStore(s => s.user);
     const currentAddress = useAuthStore(s => s.currentAddress);
+    const addresses = useAuthStore(s => s.addresses);
+    const justRegistered = useAuthStore(s => s.justRegistered);
     const cartCount = useCartStore(s => s.getTotalItems());
+
+    const hasRedirected = useRef(false);
 
     const setCachedRestaurant = useRestaurantStore(s => s.setRestaurant);
     const getCachedRestaurant = useRestaurantStore(s => s.getRestaurant);
+
+    // Self-healing: If somehow profile fetch failed during login, retry here
+    useEffect(() => {
+        if (isAuthenticated && !profile) {
+            console.log('🔄 Profile missing on Home mount. Retrying fetch...');
+            fetchProfile();
+        }
+    }, [isAuthenticated, profile]);
+
+    useEffect(() => {
+        // Only redirect if profile is loaded, addresses are fetched and empty, 
+        // AND we haven't already redirected in this component mount.
+        if (profile && !hasRedirected.current && addresses.length === 0) {
+            hasRedirected.current = true;
+            useAuthStore.setState({ justRegistered: false });
+
+            console.log('🚀 No addresses found. Redirecting to address setup...');
+            setTimeout(() => {
+                router.push('/addresses');
+            }, 800);
+        }
+    }, [profile, addresses.length, router]);
 
     const [restaurants, setRestaurants] = useState([]);
     const [loading, setLoading] = useState(true);
