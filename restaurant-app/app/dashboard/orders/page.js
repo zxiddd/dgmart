@@ -52,8 +52,10 @@ export default function OrdersPage() {
         try {
             const res = await api.put(`/orders/${orderId}/status`, { status });
             if (res.data.success) {
-                setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
-                toast.success(`Order marked as ${status}`);
+                // When restaurant marks 'ready', backend sets status to 'searching_rider'
+                const effectiveStatus = status === 'ready' ? 'searching_rider' : status;
+                setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: effectiveStatus } : o));
+                toast.success(`Order marked as ${status} - Searching for rider!`);
             }
         } catch (error) {
             console.error('Update failed:', error);
@@ -63,7 +65,8 @@ export default function OrdersPage() {
 
     const filteredOrders = orders.filter(o => {
         if (filter === 'active') return ['placed', 'confirmed', 'preparing'].includes(o.status);
-        if (filter === 'ready') return o.status === 'ready' || o.status === 'out_for_delivery' || o.status === 'picked_up';
+        // 'searching_rider' and 'assigned_rider' are the real statuses after restaurant marks 'ready'
+        if (filter === 'ready') return ['ready', 'searching_rider', 'assigned_rider', 'out_for_delivery', 'picked_up'].includes(o.status);
         if (filter === 'past') return ['delivered', 'cancelled', 'rejected'].includes(o.status);
         return true;
     });
@@ -85,7 +88,7 @@ export default function OrdersPage() {
                     onClick={() => setFilter('ready')}
                     className={`px-4 py-2 rounded-full text-sm font-bold shadow-md whitespace-nowrap transition-colors ${filter === 'ready' ? 'bg-primary text-white shadow-orange-200' : 'bg-white text-gray-600 border border-gray-200'}`}
                 >
-                    Ready/Dispatch ({orders.filter(o => ['ready', 'out_for_delivery', 'picked_up'].includes(o.status)).length})
+                    Ready/Dispatch ({orders.filter(o => ['ready', 'searching_rider', 'assigned_rider', 'out_for_delivery', 'picked_up'].includes(o.status)).length})
                 </button>
                 <button
                     onClick={() => setFilter('past')}
