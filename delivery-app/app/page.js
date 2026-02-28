@@ -14,11 +14,11 @@ export default function LoginPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Only auto-redirect if already logged in on initial load, but don't fight the login form
-        if (!authLoading && user && !loading) {
-            window.location.href = '/dashboard';
+        // Only auto-redirect if already logged in on initial load
+        if (!authLoading && user) {
+            router.push('/dashboard');
         }
-    }, [user, authLoading, loading]);
+    }, [user, authLoading, router]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -26,7 +26,7 @@ export default function LoginPage() {
         try {
             await login(email, password);
             toast.success('Welcome back!');
-            window.location.href = '/dashboard';
+            // `useEffect` above will handle router.push('/dashboard') as soon as `user` updates
         } catch (err) {
             console.error(err);
             toast.error('Invalid email or password');

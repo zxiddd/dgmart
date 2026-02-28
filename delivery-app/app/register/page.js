@@ -90,9 +90,8 @@ export default function RegisterPage() {
             toast.success('Ready to ride! 🚀', { id: toastId });
             setSubmitting(false);
 
-            // Force a small delay to ensure session cookies settle before redirecting
             setTimeout(() => {
-                window.location.href = '/dashboard';
+                router.push('/dashboard');
             }, 500);
         } catch (error) {
             console.error('Registration Error:', error);
