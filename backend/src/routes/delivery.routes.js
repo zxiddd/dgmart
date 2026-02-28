@@ -16,6 +16,8 @@ router.put('/location', authenticate, validate(updateLocationSchema), deliveryCo
 
 // Orders
 router.get('/orders', authenticate, deliveryController.getAssignedOrders);
+router.get('/available-orders', authenticate, deliveryController.getAvailableOrders);
+router.post('/orders/:orderId/claim', authenticate, deliveryController.claimOrder);
 router.put('/orders/:assignmentId/respond', authenticate, deliveryController.respondToAssignment);
 router.put('/orders/:assignmentId/status', authenticate, deliveryController.updateDeliveryStatus);
 

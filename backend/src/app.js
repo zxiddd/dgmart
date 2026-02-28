@@ -28,6 +28,7 @@ const supportRoutes = require('./routes/support.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const bannerRoutes = require('./routes/banner.routes');
 const configRoutes = require('./routes/config.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Initialize Express app
 const app = express();
@@ -148,6 +149,7 @@ app.use('/api/support', supportRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/app', configRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ============ ERROR HANDLING ============
 
@@ -179,6 +181,7 @@ server.listen(PORT, '0.0.0.0', () => {
 ║   • /api/payments   - Payments                ║
 ║   • /api/admin      - Admin Dashboard         ║
 ║   • /api/support    - Support & Tickets       ║
+║   • /api/notifications - Push Notifications     ║
 ║                                              ║
 ╚══════════════════════════════════════════════╝
   `);

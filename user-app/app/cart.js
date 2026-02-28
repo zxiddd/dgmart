@@ -223,7 +223,7 @@ export default function CartScreen() {
                             const options = {
                                 description: 'Ordering from Degloor Mart',
                                 currency: 'INR',
-                                key: res.data.razorpay_key_id,
+                                key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || res.data.razorpay_key_id,
                                 amount: Math.round(res.data.order.total * 100),
                                 name: 'Degloor Mart',
                                 order_id: res.data.order.razorpay_order_id,
@@ -505,18 +505,18 @@ export default function CartScreen() {
                         <View style={styles.itemDivider} />
 
                         <TouchableOpacity
-                            style={[styles.payRow, { opacity: 0.45 }]}
-                            onPress={() => Alert.alert('Unavailable', 'Online payments are coming soon. Use Cash on Delivery.')}
+                            style={[styles.payRow, paymentMethod === 'online' && styles.payRowActive]}
+                            onPress={() => setPaymentMethod('online')}
                         >
-                            <View style={styles.radioOuter}>
-                                <View style={{ width: 10, height: 10 }} />
+                            <View style={[styles.radioOuter, paymentMethod === 'online' && styles.radioOuterActive]}>
+                                {paymentMethod === 'online' && <View style={styles.radioInner} />}
                             </View>
                             <View style={styles.payIcon}>
-                                <MaterialIcons name="qr-code-2" size={20} color={COLORS.textLight} />
+                                <MaterialIcons name="qr-code-2" size={20} color={COLORS.primary} />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.payTitle}>Pay Online</Text>
-                                <Text style={styles.paySubtitle}>UPI / Cards — Coming Soon</Text>
+                                <Text style={styles.paySubtitle}>UPI / Cards / NetBanking</Text>
                             </View>
                         </TouchableOpacity>
                     </View>

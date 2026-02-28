@@ -62,6 +62,87 @@ const toggleOnlineStatus = async (req, res, next) => {
 };
 
 /**
+ * Get available orders (broadcasted)
+ */
+const getAvailableOrders = async (req, res, next) => {
+    try {
+        const query = `
+            SELECT o.*, r.name as restaurant_name, r.lat as restaurant_lat, r.lng as restaurant_lng, r.address as restaurant_address
+            FROM orders o
+            JOIN restaurants r ON o.restaurant_id = r.id
+            WHERE o.status = 'searching_rider'
+            ORDER BY o.created_at DESC
+        `;
+        const { rows } = await db.query(query);
+        res.json({ success: true, data: { orders: rows } });
+    } catch (e) {
+        next(e);
+    }
+};
+
+/**
+ * Claim an available order
+ */
+const claimOrder = async (req, res, next) => {
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+        const { orderId } = req.params;
+        const userId = req.user.id; // Partner's user ID
+
+        // 1. Check if order is still available (Atomic check)
+        const orderRes = await client.query('SELECT status, order_number, restaurant_id FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+
+        if (orderRes.rows.length === 0) {
+            throw new Error('Order not found');
+        }
+
+        const order = orderRes.rows[0];
+        if (order.status !== 'searching_rider') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Order already claimed by another rider or updated.' });
+        }
+
+        // 2. Create assignment
+        const assignRes = await client.query(`
+            INSERT INTO delivery_assignments (order_id, partner_id, status, assigned_at) 
+            VALUES ($1, $2, 'accepted', NOW()) 
+            RETURNING id
+        `, [orderId, userId]);
+
+        const assignmentId = assignRes.rows[0].id;
+
+        // 3. Update order status
+        await client.query("UPDATE orders SET status = 'accepted_by_driver' WHERE id = $1", [orderId]);
+
+        await client.query('COMMIT');
+
+        // 4. Notify via Sockets
+        const io = global.io;
+        if (io) {
+            // Notify other riders to remove from their list
+            io.emit('order_claimed', { order_id: orderId, claimed_by: userId });
+
+            // Notify customer & restaurant
+            io.to(`order:${orderId}`).emit('order_status_update', { order_id: orderId, status: 'accepted_by_driver' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Order claimed successfully',
+            data: { assignment_id: assignmentId }
+        });
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('Claim Order Error:', e);
+        res.status(500).json({ success: false, message: e.message });
+    } finally {
+        client.release();
+    }
+};
+
+/**
  * Update current location
  */
 const updateLocation = async (req, res, next) => {
@@ -335,5 +416,7 @@ module.exports = {
     updateDeliveryStatus,
     getEarnings,
     getDeliveryHistory,
-    getPartnerProfile
+    getPartnerProfile,
+    getAvailableOrders,
+    claimOrder
 };

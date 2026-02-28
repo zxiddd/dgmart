@@ -416,7 +416,10 @@ const updateOrderStatus = async (req, res, next) => {
 
         await client.query(`UPDATE orders SET ${updates} WHERE id = $2`, [status, id]);
 
-        if (status === 'ready') await assignDeliveryPartner(id, order, client);
+        if (status === 'ready') {
+            await client.query('UPDATE orders SET status = $1 WHERE id = $2', ['searching_rider', id]);
+            await broadcastOrderToRiders(id, { ...order, status: 'searching_rider' }, client);
+        }
 
         await client.query('COMMIT');
         createNotification(order.user_id, 'Order Update', `Order is ${status}`, 'order_update', { order_id: id });
@@ -560,10 +563,12 @@ const reorder = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 
-// Helper - simplified logic
-const assignDeliveryPartner = async (orderId, order, client) => {
+/**
+ * Broadcast order to all online delivery partners
+ */
+const broadcastOrderToRiders = async (orderId, order, client) => {
     try {
-        console.log(`Starting smarter assignment for order: ${order.order_number}`);
+        console.log(`📡 Broadcasting order ${order.order_number} to all available riders`);
 
         // 1. Find the restaurant's location
         const restRes = await client.query('SELECT lat, lng, name FROM restaurants WHERE id = $1', [order.restaurant_id]);
@@ -572,115 +577,60 @@ const assignDeliveryPartner = async (orderId, order, client) => {
 
         // 2. Fetch all online and verified partners
         const resPartners = await client.query(`
-            SELECT p.*, u.name as partner_name,
-            (SELECT COUNT(*) FROM delivery_assignments WHERE partner_id = p.user_id AND status IN ('assigned', 'accepted', 'picked_up')) as active_orders
+            SELECT p.user_id, u.name as partner_name
             FROM delivery_partners p
             JOIN users u ON p.user_id = u.id
             WHERE p.is_online = true AND p.is_verified = true
         `);
 
-        let bestPartner = null;
-        let minScore = Infinity;
-
-        for (const p of resPartners.rows) {
-            // Calculate distance from partner to restaurant (for pickup)
-            const distToRest = calculateDistance(p.current_lat, p.current_lng, restaurant.lat, restaurant.lng);
-
-            // Scoring logic:
-            // - Priority 1: 0 active orders (base score = distance)
-            // - Priority 2: 1 active order AND "Almost there" (within 1km of current dropoff)
-
-            let score = distToRest;
-
-            if (p.active_orders > 0) {
-                if (p.active_orders >= 2) continue; // Skip riders with 2+ orders
-
-                // If 1 order, check if "Almost there"
-                const activeAssign = await client.query(`
-                    SELECT o.delivery_lat, o.delivery_lng 
-                    FROM delivery_assignments da
-                    JOIN orders o ON da.order_id = o.id
-                    WHERE da.partner_id = $1 AND da.status IN ('accepted', 'picked_up')
-                    LIMIT 1
-                `, [p.user_id]);
-
-                if (activeAssign.rows.length > 0) {
-                    const dropoff = activeAssign.rows[0];
-                    const distToDropoff = calculateDistance(p.current_lat, p.current_lng, dropoff.delivery_lat, dropoff.delivery_lng);
-
-                    if (distToDropoff > 1.5) continue; // Only consider if < 1.5km from current dropoff
-
-                    // Rider is almost done. Add a small penalty to prioritize idle riders, 
-                    // but still keep them in the pool if they are very close.
-                    score += 2; // 2km penalty for being busy
-                }
-            }
-
-            if (score < minScore) {
-                minScore = score;
-                bestPartner = p;
-            }
+        if (resPartners.rows.length === 0) {
+            console.log(`⚠️ No online partners found for broadcast of order ${order.order_number}`);
+            return;
         }
 
-        if (bestPartner) {
-            console.log(`Assigned partner ${bestPartner.partner_name} to order ${order.order_number}`);
+        const io = global.io;
 
-            const assignmentRes = await client.query(`
-                INSERT INTO delivery_assignments (order_id, partner_id, status) 
-                VALUES ($1, $2, 'assigned') 
-                RETURNING *
-            `, [orderId, bestPartner.user_id]);
-
-            const assignment = assignmentRes.rows[0];
-
-            // 3. Notify Partner via Socket
-            const io = global.io; // Ensure io is accessible globally or passed
+        // 3. Notify each partner
+        for (const p of resPartners.rows) {
+            // Socket Notification
             if (io) {
-                console.log(`Emitting new_assignment to user:${bestPartner.user_id}`);
-                io.to(`user:${bestPartner.user_id}`).emit('new_assignment', {
-                    assignment_id: assignment.id,
+                console.log(`Emitting new_available_order to user:${p.user_id}`);
+                io.to(`user:${p.user_id}`).emit('new_available_order', {
                     order_id: orderId,
                     order_number: order.order_number,
                     restaurant_name: restaurant.name,
                     delivery_address: order.delivery_address,
                     total: order.total,
-                    distance: order.distance_km
+                    distance: order.distance_km || 0
                 });
-            } else {
-                console.error('Socket.io instance (global.io) not found!');
             }
 
-            // 4. Notify Partner via Web Push
+            // Web Push Notification
             await sendWebPush(
-                bestPartner.user_id,
-                '🛵 New Order Assigned!',
-                `Order #${order.order_number} from ${restaurant.name} is assigned to you.`,
+                p.user_id,
+                '🛵 New Order Available!',
+                `A new order #${order.order_number} from ${restaurant.name} is available for pickup.`,
                 {
-                    assignment_id: assignment.id,
                     order_id: orderId,
                     url: '/dashboard'
                 }
             );
 
-            // Create persistent notification
+            // Persistent internal notification
             await client.query(`
                 INSERT INTO notifications (user_id, title, body, type, data) 
-                VALUES ($1, $2, $3, 'new_assignment', $4)
+                VALUES ($1, $2, $3, 'new_available_order', $4)
             `, [
-                bestPartner.user_id,
-                'New Order Assigned!',
-                `You have a new delivery from ${restaurant.name}`,
-                JSON.stringify({ order_id: orderId, assignment_id: assignment.id })
+                p.user_id,
+                'New Order Available!',
+                `Order #${order.order_number} is available for pickup.`,
+                JSON.stringify({ order_id: orderId })
             ]);
-        } else {
-            console.log(`No available partners found for order ${order.order_number}`);
-            console.log(`Searched ${resPartners.rows.length} online & verified partners.`);
-            if (resPartners.rows.length === 0) {
-                console.log('Reason: No partners are currently online and verified.');
-            }
         }
+
+        console.log(`✅ Broadcasted order ${order.order_number} to ${resPartners.rows.length} riders`);
     } catch (e) {
-        console.error('Smarter assignment failed:', e);
+        console.error('Broadcast failed:', e);
     }
 };
 
@@ -841,5 +791,5 @@ module.exports = {
     getRestaurantOrders,
     updateOrderStatus,
     previewOrder, // Exported
-    assignDeliveryPartner // Exported for testing
+    broadcastOrderToRiders // Exported for testing
 };

@@ -2,19 +2,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { useSocket } from '@/context/SocketContext';
-import { Power, MapPin, DollarSign, CheckCircle, Package, Phone, KeyRound } from 'lucide-react';
-import api from '@/lib/api';
-import toast from 'react-hot-toast';
-import PushNotificationManager from '@/components/PushNotificationManager';
+import { useNotifications } from '@/context/NotificationContext';
+import { Power, MapPin, DollarSign, CheckCircle, Package, Phone, KeyRound, Bell, BellOff } from 'lucide-react';
 
 export default function DashboardPage() {
     const { user } = useAuth();
     const { socket } = useSocket();
+    const { permission, requestPermission } = useNotifications();
     const [isOnline, setIsOnline] = useState(false);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({ earnings: 0, count: 0, today: 0 });
     const [activeAssignment, setActiveAssignment] = useState(null);
+    const [availableOrders, setAvailableOrders] = useState([]);
     const [history, setHistory] = useState([]);
     const [deliveryOtp, setDeliveryOtp] = useState('');
     const router = useRouter();
@@ -34,6 +33,7 @@ export default function DashboardPage() {
             }
 
             const ordersRes = await api.get('/delivery/orders');
+            const availableRes = await api.get('/delivery/available-orders');
 
             const p = profileRes.data.data.partner;
             setIsOnline(p.is_online);
@@ -45,6 +45,7 @@ export default function DashboardPage() {
 
             const active = ordersRes.data.data.active[0];
             setActiveAssignment(active || null);
+            setAvailableOrders(availableRes.data.data.orders);
             setHistory(ordersRes.data.data.completed.slice(0, 5));
         } catch (error) {
             console.error('Fetch error:', error);
@@ -58,9 +59,19 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!socket) return;
-        socket.on('new_assignment', () => { fetchData(); toast.success('🛵 New Order Assigned!'); });
+        socket.on('new_available_order', (data) => {
+            setAvailableOrders(prev => [data, ...prev]);
+            toast.success('🛵 New Available Order Nearby!', { duration: 5000 });
+        });
+        socket.on('order_claimed', ({ order_id }) => {
+            setAvailableOrders(prev => prev.filter(o => o.id !== order_id));
+        });
         socket.on('assignment_status_update', () => { fetchData(); });
-        return () => { socket.off('new_assignment'); socket.off('assignment_status_update'); };
+        return () => {
+            socket.off('new_available_order');
+            socket.off('order_claimed');
+            socket.off('assignment_status_update');
+        };
     }, [socket, fetchData]);
 
     // Auto-refresh every 30 seconds
@@ -84,10 +95,7 @@ export default function DashboardPage() {
     const updateStatus = async (status) => {
         if (!activeAssignment) return;
         try {
-            if (status === 'accepted') {
-                await api.put(`/delivery/orders/${activeAssignment.id}/respond`, { action: 'accept' });
-                toast.success('✅ Order Accepted!');
-            } else if (status === 'delivered') {
+            if (status === 'delivered') {
                 if (!deliveryOtp || deliveryOtp.length < 4) {
                     toast.error('⚠️ Enter the 4-digit OTP from the customer first');
                     return;
@@ -104,6 +112,22 @@ export default function DashboardPage() {
             const msg = error.response?.data?.message || error.message || 'Failed to update status';
             toast.error(msg);
             console.error('Update status error:', error.response?.data || error);
+        }
+    };
+
+    const handleClaimOrder = async (orderId) => {
+        try {
+            setLoading(true);
+            const res = await api.post(`/delivery/orders/${orderId}/claim`);
+            if (res.data.success) {
+                toast.success('🚀 Order claimed! Move to restaurant.');
+                fetchData();
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Failed to claim order');
+            fetchData();
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -138,12 +162,18 @@ export default function DashboardPage() {
         <div className="p-4 space-y-5 pb-10">
             <header className="flex justify-between items-center bg-gray-900 -mx-4 -mt-4 p-5 rounded-b-[2rem] shadow-xl text-white">
                 <div>
-                    <h1 className="text-xl font-bold">Hello, {user?.email?.split('@')[0] || 'Partner'}!</h1>
-                    <div className="mt-1">
-                        <PushNotificationManager />
-                    </div>
+                    <h1 className="text-xl font-bold text-white">Hello, {user?.email?.split('@')[0] || 'Partner'}!</h1>
+                    <p className="text-[10px] text-white/50 font-medium uppercase tracking-wider mt-0.5">
+                        {isOnline ? '🟢 Online & Ready' : '🔴 Currently Offline'}
+                    </p>
                 </div>
-                <div className="flex flex-col items-end gap-3">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={requestPermission}
+                        className={`p-2.5 rounded-full transition-all ${permission === 'granted' ? 'bg-white/10 text-green-400' : 'bg-orange-500 text-white animate-pulse shadow-lg shadow-orange-500/20'}`}
+                    >
+                        {permission === 'granted' ? <Bell size={18} /> : <BellOff size={18} />}
+                    </button>
                     <button
                         onClick={toggleStatus}
                         className={`px-5 py-2.5 rounded-full font-bold text-xs flex items-center gap-2 transition-all ${isOnline ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' : 'bg-white/10 text-white/60 border border-white/10'}`}
@@ -151,9 +181,29 @@ export default function DashboardPage() {
                         <Power size={14} />
                         {isOnline ? 'ONLINE' : 'OFFLINE'}
                     </button>
-                    <p className="text-[10px] font-medium opacity-60 uppercase tracking-wider">{isOnline ? 'Searching...' : 'Offline'}</p>
                 </div>
             </header>
+
+            {/* Notification Permission Prompt */}
+            {permission !== 'granted' && isOnline && (
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-2xl shadow-xl mb-2 flex items-center justify-between border border-orange-400/20">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/20 p-2 rounded-xl">
+                            <Bell className="animate-bounce" size={20} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-sm">Enable Alerts</p>
+                            <p className="text-[10px] opacity-90">Get notified instantly when new orders arrive!</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={requestPermission}
+                        className="bg-white text-orange-600 px-4 py-2 rounded-xl text-xs font-bold shadow-lg active:scale-95 transition-all"
+                    >
+                        ENABLE NOW
+                    </button>
+                </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 gap-4">
@@ -269,12 +319,7 @@ export default function DashboardPage() {
 
                         {/* Action Buttons */}
                         <div>
-                            {activeAssignment.status === 'assigned' && (
-                                <button onClick={() => updateStatus('accepted')} className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-orange-200 hover:bg-orange-600 transition-colors">
-                                    🛵 Accept Order
-                                </button>
-                            )}
-                            {activeAssignment.status === 'accepted' && (
+                            {activeAssignment.status === 'accepted' || activeAssignment.status === 'assigned' && (
                                 <button onClick={() => updateStatus('picked_up')} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg shadow-blue-200 hover:bg-blue-700 transition-colors">
                                     📦 Mark as Picked Up from Restaurant
                                 </button>
@@ -282,23 +327,66 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[180px] flex flex-col items-center justify-center p-6 text-center">
+                    <div className="space-y-4">
                         {isOnline ? (
-                            <>
-                                <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mb-3 animate-pulse">
-                                    <MapPin size={28} className="text-orange-500" />
+                            availableOrders.length > 0 ? (
+                                <div className="grid gap-4">
+                                    {availableOrders.map((order) => (
+                                        <div key={order.id} className="bg-white rounded-2xl shadow-md border border-orange-100 p-4 space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900">Order #{order.order_number?.slice(-6)}</h4>
+                                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">Available Now</p>
+                                                </div>
+                                                <div className="bg-green-50 px-3 py-1 rounded-lg">
+                                                    <p className="text-xl font-bold text-green-600">₹{order.delivery_fee}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="flex items-start gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] uppercase font-bold text-gray-400">Pickup</p>
+                                                        <p className="text-xs font-semibold text-gray-700 leading-tight">{order.restaurant_name}</p>
+                                                        <p className="text-[10px] text-gray-500 truncate max-w-[200px]">{order.restaurant_address}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] uppercase font-bold text-gray-400">Deliver To</p>
+                                                        <p className="text-xs font-semibold text-gray-700 leading-tight truncate max-w-[200px]">{order.delivery_address}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleClaimOrder(order.id)}
+                                                className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-orange-600 active:scale-[0.98] transition-all"
+                                            >
+                                                🛵 Claim Order
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                                <h3 className="text-base font-bold text-gray-900">Finding Orders Near You...</h3>
-                                <p className="text-xs text-gray-500 mt-1">Hang tight, orders will appear here</p>
-                            </>
+                            ) : (
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[180px] flex flex-col items-center justify-center p-6 text-center">
+                                    <div className="w-14 h-14 bg-orange-50 rounded-full flex items-center justify-center mb-3 animate-pulse">
+                                        <MapPin size={28} className="text-orange-500" />
+                                    </div>
+                                    <h3 className="text-base font-bold text-gray-900">Waiting for New Orders...</h3>
+                                    <p className="text-xs text-gray-500 mt-1">Orders in your area will appear here</p>
+                                </div>
+                            )
                         ) : (
-                            <>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[180px] flex flex-col items-center justify-center p-6 text-center">
                                 <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                                     <Power size={28} className="text-gray-400" />
                                 </div>
                                 <h3 className="text-base font-bold text-gray-900">You are Offline</h3>
-                                <p className="text-xs text-gray-500 mt-1">Tap the button above to go online</p>
-                            </>
+                                <p className="text-xs text-gray-500 mt-1">Go online to see available orders</p>
+                            </div>
                         )}
                     </div>
                 )}

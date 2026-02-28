@@ -9,11 +9,20 @@ async function createTable() {
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
                 subscription JSONB NOT NULL,
+                endpoint TEXT UNIQUE NOT NULL,
                 device_type TEXT, -- 'web', 'mobile'
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
             
+            -- Add endpoint if missing and make unique
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='push_subscriptions' AND column_name='endpoint') THEN
+                    ALTER TABLE public.push_subscriptions ADD COLUMN endpoint TEXT UNIQUE;
+                END IF;
+            END $$;
+
             -- Add index for user_id
             CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
         `);
