@@ -47,6 +47,16 @@ async function checkSchema() {
             console.log(`- ${row.column_name} (${row.data_type})`);
         });
 
+        const partnerRes = await client.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'delivery_partners'
+    `);
+        console.log('\nDelivery Partners columns:');
+        partnerRes.rows.forEach(row => {
+            console.log(`- ${row.column_name} (${row.data_type})`);
+        });
+
     } catch (err) {
         console.error('Error:', err.message);
     } finally {
