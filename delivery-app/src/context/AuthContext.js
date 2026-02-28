@@ -32,6 +32,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.onerror = function (message, source, lineno, colno, error) {
+                console.error("Global Error Caught:", message, source, lineno, colno, error);
+            };
+        }
+
         const initialize = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
