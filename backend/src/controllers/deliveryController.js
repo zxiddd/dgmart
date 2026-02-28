@@ -105,8 +105,8 @@ const claimOrder = async (req, res, next) => {
 
         // 2. Create assignment
         const assignRes = await client.query(`
-            INSERT INTO delivery_assignments (order_id, partner_id, status, assigned_at) 
-            VALUES ($1, $2, 'accepted', NOW()) 
+            INSERT INTO delivery_assignments (order_id, partner_id, status) 
+            VALUES ($1, $2, 'accepted') 
             RETURNING id
         `, [orderId, userId]);
 
