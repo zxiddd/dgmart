@@ -231,7 +231,7 @@ const createOrder = async (req, res, next) => {
         const orderRes = await client.query(orderQuery, values);
         const order = orderRes.rows[0];
 
-        if (payment_method === PAYMENT_METHOD.RAZORPAY) {
+        if (payment_method === PAYMENT_METHOD.RAZORPAY || payment_method === PAYMENT_METHOD.ONLINE) {
             if (!razorpay) throw new Error('Online payments are currently unavailable. Please use COD.');
             const rzpOrder = await razorpay.orders.create({
                 amount: Math.round(total * 100),

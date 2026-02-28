@@ -130,7 +130,7 @@ const createOrderSchema = Joi.object({
             ).optional(),
         })
     ).min(1).required(),
-    payment_method: Joi.string().valid('cod', 'razorpay', 'wallet').required(),
+    payment_method: Joi.string().valid('cod', 'razorpay', 'wallet', 'online').required(),
     phone: Joi.string().pattern(/^[0-9]{10}$/).allow('').optional(),
     promo_code: Joi.string().optional(),
     tip: Joi.number().min(0).default(0),

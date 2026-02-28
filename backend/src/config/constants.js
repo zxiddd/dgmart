@@ -21,10 +21,10 @@ const PAYMENT_STATUS = {
 };
 
 // Payment methods
-const PAYMENT_METHOD = {
-    COD: 'cod',
+COD: 'cod',
     RAZORPAY: 'razorpay',
-    WALLET: 'wallet',
+        WALLET: 'wallet',
+            ONLINE: 'online',
 };
 
 // User roles
