@@ -1,18 +1,45 @@
 'use client';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardLayout({ children }) {
     const [mounted, setMounted] = useState(false);
+    const { user, loading } = useAuth();
+    const router = useRouter();
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    if (!mounted) {
+    useEffect(() => {
+        // Enforce auth
+        if (mounted && !loading && !user) {
+            console.log('Dashboard Layout: No user found, redirecting to login');
+            router.push('/');
+        }
+    }, [user, loading, mounted, router]);
+
+    // Prevent rendering until we are absolutely certain about auth state
+    if (!mounted || loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-500 font-medium animate-pulse">Loading profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-gray-500 font-medium">Redirecting to login...</p>
+                </div>
             </div>
         );
     }
