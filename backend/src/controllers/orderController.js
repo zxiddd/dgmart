@@ -110,11 +110,14 @@ const createOrder = async (req, res, next) => {
         // Validate address
         const addrRes = await client.query('SELECT * FROM addresses WHERE id = $1', [address_id]);
         if (addrRes.rows.length === 0 || addrRes.rows[0].user_id !== userId) {
-            console.error('❌ [ORDER FAIL] Invalid address block:', {
+            // Enhanced logging for debugging
+            console.error('❌ [ORDER FAIL] Address Not Found or Ownership Mismatch:', {
                 providedAddressId: address_id,
-                foundRows: addrRes.rows.length,
-                dbUserId: addrRes.rows[0]?.user_id,
-                requestUserId: userId
+                foundInDb: addrRes.rows.length > 0,
+                addressOwner: addrRes.rows[0]?.user_id,
+                requestUser: userId,
+                // Check if the address exists but belongs to a different user
+                otherAddressesCount: (await client.query('SELECT count(*) FROM addresses WHERE user_id = $1', [userId])).rows[0].count
             });
             throw new Error('Invalid delivery address.');
         }
