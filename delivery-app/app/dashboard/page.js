@@ -248,7 +248,7 @@ export default function DashboardPage() {
                 if (prev.find(o => o.id === data.order_id)) return prev;
                 return [data, ...prev];
             });
-            playAlert();
+            // playAlert(); // Temporarily disabled to test for mobile autoplay crashes
             toast.success('🛵 New Order Nearby!', { duration: 5000 });
         });
         socket.on('order_claimed', ({ order_id }) => {
