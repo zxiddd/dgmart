@@ -305,7 +305,7 @@ const updateDeliveryStatus = async (req, res, next) => {
             await client.query(`UPDATE delivery_partners SET total_deliveries = total_deliveries + 1, total_earnings = total_earnings + $1 WHERE user_id = $2`, [fee, assignment.partner_id]);
         }
 
-        await client.query(`UPDATE delivery_assignments SET ${updates} WHERE id = $2`, [status, assignmentId]);
+        await client.query(`UPDATE delivery_assignments SET ${updates} WHERE id = $2`, [status, assignment.id]);
 
         // Emit socket events
         const io = global.io;

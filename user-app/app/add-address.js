@@ -27,27 +27,42 @@ export default function AddAddressScreen() {
 
     useEffect(() => {
         loadZones();
-        if (id) {
+        if (id && addresses.length > 0) {
             const addr = addresses.find(a => a.id.toString() === id.toString());
             if (addr) {
-                setFullAddress(addr.full_address.split(',')[0]); // Basic split, might need better logic
+                // If full_address was saved as "Main St, Landmark, Zone", 
+                // we want to extract just "Main St" for the fullAddress field.
+                let baseAddress = addr.full_address;
+                const zoneName = addr.full_address.split(', ').pop();
+
+                // Remove zone from end
+                if (baseAddress.endsWith(`, ${zoneName}`)) {
+                    baseAddress = baseAddress.substring(0, baseAddress.length - (zoneName.length + 2));
+                }
+
+                // Remove landmark if it exists and is at the end of the remaining string
+                if (addr.landmark && baseAddress.endsWith(`, ${addr.landmark}`)) {
+                    baseAddress = baseAddress.substring(0, baseAddress.length - (addr.landmark.length + 2));
+                }
+
+                setFullAddress(baseAddress);
                 setLandmark(addr.landmark || '');
                 setPhone(addr.phone || profile?.phone || '');
                 setLabel(addr.label ? addr.label.charAt(0).toUpperCase() + addr.label.slice(1) : 'Home');
                 setIsDefault(addr.is_default);
+
+                // Match zone
+                const zone = zones.find(z => z.name === zoneName);
+                if (zone) setSelectedZone(zone);
             }
         }
-    }, [id]);
+    }, [id, addresses, zones]);
 
     const loadZones = async () => {
         try {
             const res = await userAPI.getZones();
             if (res.success) {
                 setZones(res.data.zones);
-                if (res.data.zones.length > 0) {
-                    setSelectedZone(res.data.zones[0]);
-                    setCity(res.data.zones[0].name);
-                }
             }
         } catch (error) {
             console.log('Failed to fetch zones:', error);
@@ -69,11 +84,14 @@ export default function AddAddressScreen() {
 
         setLoading(true);
         try {
+            // Construct address string: "House No, Landmark, Zone Name"
+            const finalFullAddress = `${fullAddress.trim()}${landmark ? ', ' + landmark.trim() : ''}, ${selectedZone.name}`;
+
             const data = {
                 label: label.toLowerCase(),
-                full_address: `${fullAddress}, ${landmark ? landmark + ', ' : ''}${selectedZone.name}`,
-                landmark,
-                phone,
+                full_address: finalFullAddress,
+                landmark: landmark.trim(),
+                phone: phone.trim(),
                 is_default: isDefault,
                 lat: 18.5492,
                 lng: 77.5746
