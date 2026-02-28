@@ -14,10 +14,11 @@ export default function LoginPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!authLoading && user) {
-            router.push('/dashboard');
+        // Only auto-redirect if already logged in on initial load, but don't fight the login form
+        if (!authLoading && user && !loading) {
+            window.location.href = '/dashboard';
         }
-    }, [user, authLoading, router]);
+    }, [user, authLoading, loading]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -25,14 +26,10 @@ export default function LoginPage() {
         try {
             await login(email, password);
             toast.success('Welcome back!');
-            // Force a hard redirect to bypass Next.js router caching delays
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 100);
+            window.location.href = '/dashboard';
         } catch (err) {
             console.error(err);
             toast.error('Invalid email or password');
-        } finally {
             setLoading(false);
         }
     };
