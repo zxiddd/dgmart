@@ -35,7 +35,7 @@ function ActiveOrderCard({ assignment, onUpdateStatus }) {
                     <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${statusLabel.color}`}>
                         {statusLabel.text}
                     </span>
-                    <span className="font-bold text-gray-800 text-sm">#{od.order_number?.slice(-6)}</span>
+                    <span className="font-bold text-gray-800 text-sm">#{String(od.order_number || '').slice(-6)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-green-600 font-extrabold text-sm">₹{od.delivery_fee}</span>
@@ -143,7 +143,7 @@ function AvailableOrderCard({ order, onClaim, claiming }) {
                     <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide">
                         New Order
                     </span>
-                    <h3 className="font-bold text-gray-800 mt-2">#{order.order_number?.slice(-6) || 'N/A'}</h3>
+                    <h3 className="font-bold text-gray-800 mt-2">#{String(order.order_number || '').slice(-6) || 'N/A'}</h3>
                     <p className="text-xs text-gray-500">{order.distance ? `${order.distance} km away` : 'Nearby'}</p>
                 </div>
                 <div className="text-right">
