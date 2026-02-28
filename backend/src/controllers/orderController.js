@@ -410,14 +410,18 @@ const updateOrderStatus = async (req, res, next) => {
         if (orderRes.rows.length === 0) throw new Error('Order not found');
         const order = orderRes.rows[0];
 
+        // When order is 'ready', we immediately transition it to 'searching_rider'
+        // which triggers rider broadcast. We set ready_at but store 'searching_rider' as the final status.
+        const effectiveStatus = status === 'ready' ? 'searching_rider' : status;
+
         let updates = 'status = $1, updated_at = NOW()';
         if (status === 'confirmed') updates += `, accepted_at = NOW()`;
-        if (status === 'ready') updates += `, ready_at = NOW()`;
+        if (status === 'ready') updates += `, ready_at = NOW()`; // still record when it was ready
         if (status === 'picked_up') updates += `, picked_up_at = NOW()`;
         if (status === 'delivered') {
             updates += `, delivered_at = NOW()`;
             await client.query('UPDATE restaurants SET total_orders = total_orders + 1 WHERE id = $1', [order.restaurant_id]);
-            await client.query('UPDATE users SET total_orders = COALESCE(total_orders, 0) + 1 WHERE id = $1', [order.user_id]); // If added col
+            await client.query('UPDATE users SET total_orders = COALESCE(total_orders, 0) + 1 WHERE id = $1', [order.user_id]);
         }
 
         if (status === 'cancelled' || status === 'rejected') {
@@ -431,10 +435,11 @@ const updateOrderStatus = async (req, res, next) => {
             }
         }
 
-        await client.query(`UPDATE orders SET ${updates} WHERE id = $2`, [status, id]);
+        // Single UPDATE with effectiveStatus — avoids double-write constraint violation
+        await client.query(`UPDATE orders SET ${updates} WHERE id = $2`, [effectiveStatus, id]);
 
         if (status === 'ready') {
-            await client.query('UPDATE orders SET status = $1 WHERE id = $2', ['searching_rider', id]);
+            // Broadcast to available riders
             await broadcastOrderToRiders(id, { ...order, status: 'searching_rider' }, client);
         }
 
