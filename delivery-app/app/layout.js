@@ -9,10 +9,20 @@ export const metadata = {
     description: 'Delivery Partner App',
 };
 
+// Required for correct scaling on all mobile devices — without this the page
+// renders at desktop zoom on Android/iOS.
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover',
+};
+
 export default function RootLayout({ children }) {
     return (
-        <html lang="en">
-            <body>
+        <html lang="en" suppressHydrationWarning>
+            <body suppressHydrationWarning>
                 <AuthProvider>
                     <NotificationProvider>
                         <SocketProvider>

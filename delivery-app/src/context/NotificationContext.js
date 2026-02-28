@@ -69,7 +69,7 @@ export const NotificationProvider = ({ children }) => {
     }, [user]);
 
     const requestPermission = async () => {
-        if (!('Notification' in window)) return;
+        if (typeof window === 'undefined' || !('Notification' in window)) return;
 
         const result = await Notification.requestPermission();
         setPermission(result);
@@ -83,9 +83,10 @@ export const NotificationProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        if ('Notification' in window) {
-            setPermission(Notification.permission);
-        }
+        if (typeof window === 'undefined') return;
+        if (!('Notification' in window)) return;
+
+        setPermission(Notification.permission);
 
         if (Notification.permission === 'granted' && user) {
             subscribeUser();

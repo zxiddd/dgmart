@@ -26,8 +26,12 @@ export const SocketProvider = ({ children }) => {
 
                     newSocket = io(backendUrl, {
                         auth: { token },
-                        transports: ['websocket'],
+                        // Start with polling so mobile networks that block raw WebSocket
+                        // connections still work, then upgrade to websocket when available.
+                        transports: ['polling', 'websocket'],
                         withCredentials: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 2000,
                     });
 
                     newSocket.on('connect', () => {
