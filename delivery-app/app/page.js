@@ -25,7 +25,10 @@ export default function LoginPage() {
         try {
             await login(email, password);
             toast.success('Welcome back!');
-            router.push('/dashboard');
+            // Force a hard redirect to bypass Next.js router caching delays
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 100);
         } catch (err) {
             console.error(err);
             toast.error('Invalid email or password');
@@ -40,8 +43,8 @@ export default function LoginPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
-                    <div className="absolute top-40 right-20 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{animationDelay: '2s'}}></div>
-                    <div className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{animationDelay: '4s'}}></div>
+                    <div className="absolute top-40 right-20 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+                    <div className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }}></div>
                 </div>
             </div>
 

@@ -6,6 +6,7 @@ import { useSocket } from '@/context/SocketContext';
 import { useNotifications } from '@/context/NotificationContext';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { useAudioAlert } from '@/hooks/useAudioAlert';
 import { Power, DollarSign, CheckCircle, Package, Phone, KeyRound, Bell, BellOff, Bike, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ────────────────────────────────────────────────────────────
@@ -102,30 +103,25 @@ function ActiveOrderCard({ assignment, onUpdateStatus }) {
                     )}
 
                     {assignment.status === 'picked_up' && (
-                        <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 space-y-3">
-                            <div className="flex items-center gap-2">
-                                <KeyRound size={18} className="text-amber-600" />
-                                <div>
-                                    <p className="font-bold text-amber-900 text-sm">Enter Delivery OTP</p>
-                                    <p className="text-xs text-amber-700">Ask customer for their 4-digit code</p>
-                                </div>
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    maxLength={4}
+                                    placeholder="0 0 0 0"
+                                    value={deliveryOtp}
+                                    onChange={(e) => setDeliveryOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                                    className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-0 outline-none w-full font-mono text-center text-xl tracking-widest text-gray-800 placeholder-gray-400"
+                                />
+                                <button
+                                    onClick={() => onUpdateStatus(assignment.id, 'delivered', { otp: deliveryOtp })}
+                                    disabled={deliveryOtp.length !== 4}
+                                    className="bg-green-600 text-white px-6 w-1/3 rounded-xl font-bold text-sm shadow-md hover:bg-green-700 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 transition-all flex items-center justify-center"
+                                >
+                                    Verify
+                                </button>
                             </div>
-                            <input
-                                type="tel"
-                                inputMode="numeric"
-                                maxLength={4}
-                                placeholder="0 0 0 0"
-                                value={deliveryOtp}
-                                onChange={(e) => setDeliveryOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                                className="w-full bg-white border-2 border-amber-300 rounded-xl px-4 py-4 font-bold text-4xl text-center tracking-[1em] focus:border-amber-500 focus:outline-none"
-                            />
-                            <button
-                                onClick={() => onUpdateStatus(assignment.id, 'delivered', deliveryOtp)}
-                                disabled={deliveryOtp.length < 4}
-                                className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-sm shadow-lg disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
-                            >
-                                ✅ Verify OTP &amp; Complete Delivery
-                            </button>
                         </div>
                     )}
                 </div>
@@ -138,15 +134,20 @@ function ActiveOrderCard({ assignment, onUpdateStatus }) {
 //  Available Order Card
 // ────────────────────────────────────────────────────────────
 function AvailableOrderCard({ order, onClaim, claiming }) {
+    if (!order) return null;
+
     return (
-        <div className="bg-white rounded-2xl border border-orange-100 shadow-md p-4 space-y-3">
-            <div className="flex justify-between items-center">
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-[10px] text-orange-500 font-bold uppercase tracking-wide">New Order</p>
-                    <h4 className="font-bold text-gray-900">#{order.order_number?.slice(-6)}</h4>
+                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide">
+                        New Order
+                    </span>
+                    <h3 className="font-bold text-gray-800 mt-2">#{order.order_number?.slice(-6) || 'N/A'}</h3>
+                    <p className="text-xs text-gray-500">{order.distance ? `${order.distance} km away` : 'Nearby'}</p>
                 </div>
-                <div className="text-right bg-green-50 px-3 py-1.5 rounded-xl">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">Your Pay</p>
+                <div className="text-right">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Est. Earning</p>
                     <p className="text-xl font-extrabold text-green-600">₹{order.delivery_fee}</p>
                 </div>
             </div>
@@ -188,6 +189,7 @@ export default function DashboardPage() {
     const { user } = useAuth();
     const { socket } = useSocket();
     const { permission, requestPermission } = useNotifications();
+    const { playAlert } = useAudioAlert();
 
     const [isOnline, setIsOnline] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -246,6 +248,7 @@ export default function DashboardPage() {
                 if (prev.find(o => o.id === data.order_id)) return prev;
                 return [data, ...prev];
             });
+            playAlert();
             toast.success('🛵 New Order Nearby!', { duration: 5000 });
         });
         socket.on('order_claimed', ({ order_id }) => {
