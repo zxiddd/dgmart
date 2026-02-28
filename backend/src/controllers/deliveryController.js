@@ -290,7 +290,8 @@ const updateDeliveryStatus = async (req, res, next) => {
             const savedOtp = orderRes.rows[0]?.delivery_otp;
 
             if (savedOtp && savedOtp !== otp) {
-                throw new Error('Invalid OTP. Please ask the customer for the correct delivery code.');
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: 'Invalid OTP. Please ask the customer for the correct delivery code.' });
             }
 
             updates += ', delivered_at = NOW()';

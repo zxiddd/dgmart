@@ -644,12 +644,12 @@ const broadcastOrderToRiders = async (orderId, order) => {
             // Persistent internal notification
             await db.query(`
                 INSERT INTO notifications (user_id, title, body, type, data) 
-                VALUES ($1, $2, $3, 'new_available_order', $4)
+                VALUES ($1, $2, $3, 'system', $4)
             `, [
                 p.user_id,
                 'New Order Available!',
                 `Order #${order.order_number} is available for pickup.`,
-                JSON.stringify({ order_id: orderId })
+                JSON.stringify({ order_id: orderId, type: 'new_available_order' })
             ]).catch(e => console.error('Notification insert failed:', e.message));
         }
 

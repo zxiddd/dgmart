@@ -22,12 +22,16 @@ export const SocketProvider = ({ children }) => {
 
                 if (token) {
                     // Get backend URL from environment variable, removing '/api' suffix if present
-                    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+                    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'https://api.degloormart.in';
 
                     newSocket = io(backendUrl, {
                         auth: { token },
-                        transports: ['websocket'],
+                        // Start with polling so mobile networks that block raw WebSocket
+                        // connections still work, then upgrade to websocket when available.
+                        transports: ['polling', 'websocket'],
                         withCredentials: true,
+                        reconnectionAttempts: 5,
+                        reconnectionDelay: 2000,
                     });
 
                     newSocket.on('connect', () => {

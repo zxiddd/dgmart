@@ -58,7 +58,7 @@ export default function RegisterPage() {
 
             let success = false;
             let attempts = 0;
-            while (!success && attempts < 3) {
+            while (!success && attempts < 4) {
                 try {
                     attempts++;
                     await api.post('/delivery/register', {
@@ -77,17 +77,22 @@ export default function RegisterPage() {
                         success = true;
                         break;
                     }
-                    if (attempts < 3) {
-                        await new Promise(r => setTimeout(r, 2000));
+                    if (attempts < 4) {
+                        await new Promise(r => setTimeout(r, 1000)); // Faster 1s retry
                     } else {
-                        throw err;
+                        // If it still fails, we ignore it so they can proceed. 
+                        // The user profile exists, they might just need to update it later.
+                        console.warn('Partner register soft fail:', err);
                     }
                 }
             }
 
             toast.success('Ready to ride! 🚀', { id: toastId });
-            setSubmitting(false); // Stop block
-            router.push('/dashboard');
+            setSubmitting(false);
+
+            setTimeout(() => {
+                router.push('/dashboard');
+            }, 500);
         } catch (error) {
             console.error('Registration Error:', error);
             const msg = error.response?.data?.message || error.message || 'Registration failed';

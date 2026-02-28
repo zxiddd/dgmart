@@ -32,13 +32,26 @@ export const AuthProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.onerror = function (message, source, lineno, colno, error) {
+                console.error("Global Error Caught:", message, source, lineno, colno, error);
+            };
+        }
+
         const initialize = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                const enrichedUser = await fetchProfile(session.user);
-                setUser(enrichedUser);
+            console.log('App Load: Initializing Auth State...');
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('App Load Auth State:', session ? `User logged in as ${session.user.email}` : 'No active session');
+                if (session?.user) {
+                    const enrichedUser = await fetchProfile(session.user);
+                    setUser(enrichedUser);
+                }
+            } catch (err) {
+                console.error('App Load Auth Error:', err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
         initialize();
 

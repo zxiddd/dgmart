@@ -14,6 +14,7 @@ export default function LoginPage() {
     const router = useRouter();
 
     useEffect(() => {
+        // Only auto-redirect if already logged in on initial load
         if (!authLoading && user) {
             router.push('/dashboard');
         }
@@ -25,11 +26,10 @@ export default function LoginPage() {
         try {
             await login(email, password);
             toast.success('Welcome back!');
-            router.push('/dashboard');
+            // `useEffect` above will handle router.push('/dashboard') as soon as `user` updates
         } catch (err) {
             console.error(err);
             toast.error('Invalid email or password');
-        } finally {
             setLoading(false);
         }
     };
@@ -40,8 +40,8 @@ export default function LoginPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-20 left-20 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow"></div>
-                    <div className="absolute top-40 right-20 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{animationDelay: '2s'}}></div>
-                    <div className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{animationDelay: '4s'}}></div>
+                    <div className="absolute top-40 right-20 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+                    <div className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse-slow" style={{ animationDelay: '4s' }}></div>
                 </div>
             </div>
 
