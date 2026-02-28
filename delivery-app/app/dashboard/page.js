@@ -246,6 +246,17 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
+                        {/* Order Total to Collect */}
+                        <div className="bg-blue-600 rounded-xl p-4 flex justify-between items-center shadow-lg shadow-blue-500/20">
+                            <div>
+                                <p className="text-[10px] text-blue-100 font-bold uppercase tracking-wider">Collect from Customer</p>
+                                <p className="text-xs text-blue-100/80">Check payment status (COD/Online)</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xl font-black text-white">₹{od.total}</p>
+                            </div>
+                        </div>
+
                         {/* Delivery Address */}
                         <div className="flex gap-3 bg-orange-50 rounded-xl p-3">
                             <MapPin size={20} className="text-orange-500 flex-shrink-0 mt-0.5" />

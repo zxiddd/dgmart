@@ -236,14 +236,28 @@ const createOrder = async (req, res, next) => {
 
         if (payment_method === PAYMENT_METHOD.RAZORPAY || payment_method === PAYMENT_METHOD.ONLINE) {
             if (!razorpay) throw new Error('Online payments are currently unavailable. Please use COD.');
-            const rzpOrder = await razorpay.orders.create({
-                amount: Math.round(total * 100),
-                currency: 'INR',
-                receipt: order.order_number,
-                notes: { order_id: order.id, user_id: userId }
-            });
-            await client.query('UPDATE orders SET razorpay_order_id = $1 WHERE id = $2', [rzpOrder.id, order.id]);
-            order.razorpay_order_id = rzpOrder.id;
+
+            try {
+                console.log(`📡 [RAZORPAY] Creating order for ${order.order_number}, amount: ${Math.round(total * 100)}`);
+                const rzpOrder = await razorpay.orders.create({
+                    amount: Math.round(total * 100),
+                    currency: 'INR',
+                    receipt: order.order_number,
+                    notes: { order_id: order.id, user_id: userId }
+                });
+                console.log(`✅ [RAZORPAY] Order created: ${rzpOrder.id}`);
+                await client.query('UPDATE orders SET razorpay_order_id = $1 WHERE id = $2', [rzpOrder.id, order.id]);
+                order.razorpay_order_id = rzpOrder.id;
+            } catch (rzpError) {
+                console.error('❌ [RAZORPAY ERROR]:', {
+                    message: rzpError.message,
+                    code: rzpError.code,
+                    description: rzpError.description,
+                    metadata: rzpError.metadata,
+                    statusCode: rzpError.statusCode
+                });
+                throw new Error(`Payment gateway error: ${rzpError.description || rzpError.message || 'Authentication failed'}`);
+            }
         }
 
         if (orderItems.length > 0) {

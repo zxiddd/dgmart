@@ -179,7 +179,8 @@ const getAssignedOrders = async (req, res, next) => {
                 'customer_phone', o.customer_phone,
                 'customer_name', u.name,
                 'status', o.status,
-                'delivery_otp', o.delivery_otp
+                'delivery_otp', o.delivery_otp,
+                'total', o.total
             ) as order_details 
             FROM delivery_assignments da
             JOIN orders o ON da.order_id = o.id
