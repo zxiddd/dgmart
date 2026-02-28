@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load .env from backend
-const envPath = path.join(__dirname, '../.env');
+const envPath = path.join(__dirname, '../../.env');
 const envConfig = dotenv.parse(fs.readFileSync(envPath));
 
 const client = new Client({
