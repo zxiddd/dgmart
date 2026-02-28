@@ -438,11 +438,7 @@ const updateOrderStatus = async (req, res, next) => {
         // Single UPDATE with effectiveStatus — avoids double-write constraint violation
         await client.query(`UPDATE orders SET ${updates} WHERE id = $2`, [effectiveStatus, id]);
 
-        if (status === 'ready') {
-            // Broadcast to available riders
-            await broadcastOrderToRiders(id, { ...order, status: 'searching_rider' }, client);
-        }
-
+        // COMMIT first — broadcast happens AFTER so any failure there doesn't rollback the status update
         await client.query('COMMIT');
         createNotification(order.user_id, 'Order Update', `Order is ${status}`, 'order_update', { order_id: id });
 
@@ -461,6 +457,13 @@ const updateOrderStatus = async (req, res, next) => {
         }
 
         res.json({ success: true, message: 'Updated' });
+
+        // Broadcast AFTER response is sent — uses pool not transaction client
+        if (status === 'ready') {
+            broadcastOrderToRiders(id, { ...order, status: 'searching_rider' }).catch(e => {
+                console.error('Broadcast failed (non-critical):', e.message);
+            });
+        }
     } catch (e) {
         logDebug(`Update Order Status Failed: ${e.message}`);
         logDebug(`Params: ${JSON.stringify(req.params)} Body: ${JSON.stringify(req.body)}`);
@@ -588,17 +591,17 @@ const reorder = async (req, res, next) => {
 /**
  * Broadcast order to all online delivery partners
  */
-const broadcastOrderToRiders = async (orderId, order, client) => {
+const broadcastOrderToRiders = async (orderId, order) => {
     try {
         console.log(`📡 Broadcasting order ${order.order_number} to all available riders`);
 
-        // 1. Find the restaurant's location
-        const restRes = await client.query('SELECT lat, lng, name FROM restaurants WHERE id = $1', [order.restaurant_id]);
+        // 1. Find the restaurant's location (uses pool — outside any transaction now)
+        const restRes = await db.query('SELECT lat, lng, name FROM restaurants WHERE id = $1', [order.restaurant_id]);
         if (restRes.rows.length === 0) return;
         const restaurant = restRes.rows[0];
 
         // 2. Fetch all online and verified partners
-        const resPartners = await client.query(`
+        const resPartners = await db.query(`
             SELECT p.user_id, u.name as partner_name
             FROM delivery_partners p
             JOIN users u ON p.user_id = u.id
@@ -639,7 +642,7 @@ const broadcastOrderToRiders = async (orderId, order, client) => {
             );
 
             // Persistent internal notification
-            await client.query(`
+            await db.query(`
                 INSERT INTO notifications (user_id, title, body, type, data) 
                 VALUES ($1, $2, $3, 'new_available_order', $4)
             `, [
@@ -647,7 +650,7 @@ const broadcastOrderToRiders = async (orderId, order, client) => {
                 'New Order Available!',
                 `Order #${order.order_number} is available for pickup.`,
                 JSON.stringify({ order_id: orderId })
-            ]);
+            ]).catch(e => console.error('Notification insert failed:', e.message));
         }
 
         console.log(`✅ Broadcasted order ${order.order_number} to ${resPartners.rows.length} riders`);
