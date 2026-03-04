@@ -9,7 +9,13 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const VEHICLE_TYPES = ['Bike', 'Scooter', 'Bicycle', 'Car'];
+// Must match backend validator: 'bicycle' | 'motorcycle' | 'scooter' | 'car'
+const VEHICLE_TYPES = [
+  { label: 'Motorcycle', value: 'motorcycle' },
+  { label: 'Scooter', value: 'scooter' },
+  { label: 'Bicycle', value: 'bicycle' },
+  { label: 'Car', value: 'car' },
+];
 
 const STEPS = ['Account', 'Vehicle', 'Done'];
 
@@ -26,7 +32,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    vehicleType: 'Bike',
+    vehicleType: 'motorcycle',
     vehicleNumber: '',
   });
 
@@ -57,7 +63,9 @@ export default function RegisterPage() {
     if (error) { toast.error(error); return; }
     setSubmitting(true);
     try {
-      // 1. Create Supabase auth account
+      let session = null;
+
+      // 1. Try to create Supabase auth account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
@@ -69,17 +77,35 @@ export default function RegisterPage() {
           },
         },
       });
-      if (signUpError) throw signUpError;
 
-      // 2. Get session token to hit the backend
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Session not found after signup');
+      if (signUpError) {
+        // If account already exists, sign them in silently and continue to create partner profile
+        if (
+          signUpError.message?.toLowerCase().includes('already registered') ||
+          signUpError.message?.toLowerCase().includes('already exists') ||
+          signUpError.message?.toLowerCase().includes('user already')
+        ) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: form.email.trim(),
+            password: form.password,
+          });
+          if (signInError) throw new Error('Account already exists but password is wrong. Try logging in.');
+          session = signInData.session;
+        } else {
+          throw signUpError;
+        }
+      } else {
+        // Fresh signup — get session
+        const { data: sessionData } = await supabase.auth.getSession();
+        session = sessionData.session;
+      }
 
-      // 3. Register delivery partner profile on backend
+      if (!session) throw new Error('Could not get session. Please try again.');
+
+      // 2. Register delivery partner profile on backend
+      // vehicle_type must match: 'bicycle' | 'motorcycle' | 'scooter' | 'car'
       await api.post('/delivery/register', {
-        name: form.name.trim(),
-        phone: form.phone,
-        vehicle_type: form.vehicleType.toLowerCase(),
+        vehicle_type: form.vehicleType,        // already the correct backend value
         vehicle_number: form.vehicleNumber.trim().toUpperCase(),
       });
 
@@ -88,6 +114,12 @@ export default function RegisterPage() {
       setTimeout(() => router.replace('/dashboard'), 2000);
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Registration failed';
+      // If partner profile already registered but they got past Supabase, send them to dashboard
+      if (msg.toLowerCase().includes('already registered')) {
+        toast.success('You already have an account! Redirecting...');
+        setTimeout(() => router.replace('/dashboard'), 1500);
+        return;
+      }
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -214,16 +246,16 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   {VEHICLE_TYPES.map((type) => (
                     <button
-                      key={type}
-                      onClick={() => setForm((f) => ({ ...f, vehicleType: type }))}
+                      key={type.value}
+                      onClick={() => setForm((f) => ({ ...f, vehicleType: type.value }))}
                       className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold flex items-center gap-2 transition-all ${
-                        form.vehicleType === type
+                        form.vehicleType === type.value
                           ? 'border-primary-500 bg-primary-50 text-primary-700'
                           : 'border-gray-200 text-gray-600'
                       }`}
                     >
                       <Bike className="w-4 h-4" />
-                      {type}
+                      {type.label}
                     </button>
                   ))}
                 </div>
