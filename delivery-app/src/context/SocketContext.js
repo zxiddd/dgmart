@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { supabase } from '@/src/config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 
@@ -29,7 +30,6 @@ export const SocketProvider = ({ children }) => {
     }
 
     const initSocket = async () => {
-      const { supabase } = await import('@/src/config/supabase');
       const {
         data: { session },
       } = await supabase.auth.getSession();

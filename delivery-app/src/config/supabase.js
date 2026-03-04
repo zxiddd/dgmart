@@ -9,4 +9,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Singleton: reuse existing instance across hot reloads and module re-imports
+// Prevents "lock not released" AbortError from multiple Supabase client instances
+const globalStore = (typeof globalThis !== 'undefined' ? globalThis : global);
+
+if (!globalStore._supabaseClient) {
+  globalStore._supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storageKey: 'dm-delivery-auth-token',
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+export const supabase = globalStore._supabaseClient;
