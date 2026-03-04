@@ -22,7 +22,8 @@ export default function ProfilePage() {
     const loadProfile = async () => {
       try {
         const res = await api.get('/delivery/profile');
-        setPartnerData(res.data?.partner || null);
+        // API returns: { success: true, data: { partner: {...} } }
+        setPartnerData(res.data?.data?.partner || res.data?.partner || null);
       } catch {
         setPartnerData(profile);
       } finally {

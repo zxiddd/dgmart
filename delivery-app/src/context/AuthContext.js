@@ -17,8 +17,10 @@ export const AuthProvider = ({ children }) => {
   const fetchProfile = async () => {
     try {
       const res = await api.get('/delivery/profile');
-      setProfile(res.data?.partner || null);
-      return res.data?.partner;
+      // API returns: { success: true, data: { partner: {...}, today_earnings: 0 } }
+      const partner = res.data?.data?.partner || res.data?.partner || null;
+      setProfile(partner);
+      return partner;
     } catch {
       return null;
     }
