@@ -253,7 +253,7 @@ const updateDeliveryStatus = async (req, res, next) => {
         const { status, otp } = req.body;
 
         // Validate status
-        const validStatuses = ['picked_up', 'delivered'];
+        const validStatuses = ['picked_up', 'out_for_delivery', 'delivered'];
         if (!status || !validStatuses.includes(status)) {
             await client.query('ROLLBACK');
             return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
@@ -284,6 +284,8 @@ const updateDeliveryStatus = async (req, res, next) => {
         if (status === 'picked_up') {
             updates += ', picked_up_at = NOW()';
             await client.query("UPDATE orders SET status = 'picked_up', picked_up_at = NOW() WHERE id = $1", [assignment.order_id]);
+        } else if (status === 'out_for_delivery') {
+            await client.query("UPDATE orders SET status = 'out_for_delivery' WHERE id = $1", [assignment.order_id]);
         } else if (status === 'delivered') {
             // Verify OTP
             const orderRes = await client.query('SELECT delivery_otp FROM orders WHERE id = $1', [assignment.order_id]);
