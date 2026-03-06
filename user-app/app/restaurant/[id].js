@@ -300,7 +300,14 @@ export default function RestaurantDetailsScreen() {
                     {/* Restaurant Info */}
                     <View style={styles.infoCard}>
                         <View style={styles.rowBetween}>
-                            <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={styles.restaurantName} numberOfLines={1}>{restaurant.name}</Text>
+                                {restaurant.is_featured && (
+                                    <View style={{ backgroundColor: '#FFD700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                        <Text style={{ fontSize: 10, fontFamily: FONTS.bold, color: '#000' }}>POPULAR</Text>
+                                    </View>
+                                )}
+                            </View>
                             <View style={styles.ratingBox}>
                                 <Text style={styles.ratingText}>{restaurant.rating}</Text>
                                 <MaterialIcons name="star" size={14} color={COLORS.white} />

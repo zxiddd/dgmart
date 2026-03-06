@@ -34,7 +34,8 @@ const listRestaurants = async (req, res, next) => {
                     name as restaurant_name,
                     NULL as price,
                     lat,
-                    lng
+                    lng,
+                    is_featured
                 FROM restaurants
                 WHERE status = $1
                 AND (name ILIKE $2 OR $2 = ANY(cuisine_type))
@@ -59,7 +60,8 @@ const listRestaurants = async (req, res, next) => {
                     r.name as restaurant_name,
                     m.price,
                     r.lat,
-                    r.lng
+                    r.lng,
+                    r.is_featured
                 FROM menu_items m
                 JOIN restaurants r ON m.restaurant_id = r.id
                 LEFT JOIN menu_categories c ON m.category_id = c.id
@@ -78,7 +80,8 @@ const listRestaurants = async (req, res, next) => {
                     min_order_amount, lat, lng, is_active, status,
                     'restaurant' as result_type,
                     id as restaurant_id,
-                    name as restaurant_name
+                    name as restaurant_name,
+                    is_featured
                 FROM restaurants 
                 WHERE status = $1
             `;
@@ -113,18 +116,30 @@ const listRestaurants = async (req, res, next) => {
             }))
                 .filter(r => r.distance_km <= maxRadius);
 
-            // Sort by distance if no other sort
-            if (!sort_by) {
-                restaurants.sort((a, b) => a.distance_km - b.distance_km);
-            }
         }
 
-        // Sort
-        if (sort_by === 'rating') {
-            restaurants.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        } else if (sort_by === 'prep_time') {
-            restaurants.sort((a, b) => (a.avg_prep_time_mins || 30) - (b.avg_prep_time_mins || 30));
-        }
+        // --- Custom Sorting with is_featured priority ---
+        // We always put featured restaurants first, then apply the requested sort
+        restaurants.sort((a, b) => {
+            // First by featured (true = 1, false = 0)
+            if (b.is_featured !== a.is_featured) {
+                return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+            }
+            
+            // Then by distance if available
+            if (lat && lng && !sort_by) {
+                return (a.distance_km || 0) - (b.distance_km || 0);
+            }
+            
+            // Then by specific sort
+            if (sort_by === 'rating') {
+                return (b.rating || 0) - (a.rating || 0);
+            } else if (sort_by === 'prep_time') {
+                return (a.avg_prep_time_mins || 30) - (b.avg_prep_time_mins || 30);
+            }
+            
+            return 0;
+        });
 
         // Pagination
         const pageNum = parseInt(page) || 1;

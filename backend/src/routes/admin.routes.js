@@ -16,9 +16,10 @@ router.get('/users', adminController.getUsers);
 router.put('/users/:userId/toggle', adminController.toggleUserStatus);
 
 // Restaurants
-router.get('/restaurants', adminController.getAllRestaurants); // Added
+router.get('/restaurants', adminController.getAllRestaurants);
 router.put('/restaurants/:restaurantId/approve', adminController.approveRestaurant);
 router.delete('/restaurants/:restaurantId', adminController.deleteRestaurant);
+router.patch('/restaurants/:restaurantId/featured', adminController.toggleFeaturedRestaurant);
 
 // Delivery Partners
 router.get('/delivery-partners', adminController.getDeliveryPartners);
@@ -29,9 +30,11 @@ router.get('/orders', adminController.getAllOrders);
 
 // Promo Codes
 router.get('/promos', adminController.getPromoCodes);
-router.post('/promos', validate(promoCodeSchema), adminController.createPromoCode);
+router.post('/promos', adminController.createPromoCode);
 router.put('/promos/:promoId', adminController.updatePromoCode);
 router.delete('/promos/:promoId', adminController.deletePromoCode);
+// Public validate endpoint (used at checkout) - auth only required for user context
+router.get('/promos/:code/validate', adminController.validatePromoCode);
 
 // Banners
 router.get('/banners', adminController.getBanners);

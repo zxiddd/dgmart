@@ -442,6 +442,11 @@ export default function HomeScreen() {
                                 <Text style={styles.restVegText}>DISH</Text>
                             </View>
                         )}
+                        {item.is_featured && (
+                            <View style={[styles.restVegBadge, { left: item.is_veg || isDish ? 85 : 10, backgroundColor: '#FFD700' }]}>
+                                <Text style={[styles.restVegText, { color: '#000' }]}>POPULAR</Text>
+                            </View>
+                        )}
 
                         {/* Offline overlay */}
                         {isOffline && (

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Edit, Trash2, Plus, GripVertical, Search, UtensilsCrossed } from 'lucide-react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { CategoryModal, ItemModal } from '../../../components/MenuModals';
+import { CategoryModal, ItemModal } from '@/components/MenuModals';
 
 export default function MenuPage() {
     const [categories, setCategories] = useState([]);

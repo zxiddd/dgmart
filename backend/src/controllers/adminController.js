@@ -1,7 +1,7 @@
 const db = require('../config/db');
-// const { auth } = require('../config/firebase'); // Replaced with Supabase Admin if needed for auth mgmt, or just DB updates
 const { RESTAURANT_STATUS } = require('../config/constants');
-const supabase = require('../config/supabase'); // If exists, for auth management
+const supabase = require('../config/supabase');
+const { sendWebPush } = require('../services/webPushService');
 
 /**
  * Get Dashboard
@@ -220,9 +220,18 @@ const getPromoCodes = async (req, res, next) => {
 
 const createPromoCode = async (req, res, next) => {
     try {
-        const { code, type, value, min_order, max_discount, valid_from, valid_until, usage_limit, first_order_only } = req.body;
-        const query = `INSERT INTO promo_codes (code, type, value, min_order, max_discount, valid_from, valid_until, usage_limit, first_order_only) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`;
-        const { rows } = await db.query(query, [code, type, value, min_order, max_discount, valid_from, valid_until, usage_limit, first_order_only]);
+        const { code, type, value, min_order, max_discount, valid_from, valid_until, usage_limit, first_order_only, target_user_id, max_uses_per_user, is_active } = req.body;
+        const query = `INSERT INTO promo_codes
+            (code, type, value, min_order, max_discount, valid_from, valid_until, usage_limit, first_order_only, target_user_id, max_uses_per_user, is_active)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`;
+        const { rows } = await db.query(query, [
+            (code || '').toUpperCase(),
+            type, value, min_order || 0, max_discount, valid_from, valid_until,
+            usage_limit, first_order_only || false,
+            target_user_id || null,
+            max_uses_per_user || 1,
+            is_active !== false
+        ]);
         res.status(201).json({ success: true, data: { promo: rows[0] } });
     } catch (e) { next(e); }
 };
@@ -257,6 +266,100 @@ const deletePromoCode = async (req, res, next) => {
     try {
         await db.query('DELETE FROM promo_codes WHERE id = $1', [req.params.promoId]);
         res.json({ success: true, message: 'Deleted' });
+    } catch (e) { next(e); }
+};
+
+// ─── Validate Promo Code (for checkout) ────────────────────────────────────────
+const validatePromoCode = async (req, res, next) => {
+    try {
+        const { code } = req.params;
+        const { total, user_id } = req.query;
+        const userId = user_id || req.user?.id;
+        const orderTotal = parseFloat(total) || 0;
+
+        const { rows } = await db.query(
+            'SELECT * FROM promo_codes WHERE UPPER(code) = UPPER($1) AND is_active = TRUE',
+            [code]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Promo code not found or inactive.' });
+        
+        const promo = rows[0];
+        const now = new Date();
+
+        // Check dates
+        if (promo.valid_from && new Date(promo.valid_from) > now)
+            return res.status(400).json({ success: false, message: 'Promo code is not yet active.' });
+        if (promo.valid_until && new Date(promo.valid_until) < now)
+            return res.status(400).json({ success: false, message: 'Promo code has expired.' });
+
+        // Check min order
+        if (promo.min_order && orderTotal < parseFloat(promo.min_order))
+            return res.status(400).json({ success: false, message: `Minimum order ₹${promo.min_order} required.` });
+
+        // Check global usage limit
+        if (promo.usage_limit && promo.used_count >= promo.usage_limit)
+            return res.status(400).json({ success: false, message: 'Promo code usage limit reached.' });
+
+        // Check if specific user only
+        if (promo.target_user_id && promo.target_user_id !== userId)
+            return res.status(400).json({ success: false, message: 'This promo code is not eligible for your account.' });
+
+        // Check per-user usage
+        if (userId) {
+            const usageRes = await db.query(
+                'SELECT COUNT(*) FROM promo_code_usages WHERE promo_id = $1 AND user_id = $2',
+                [promo.id, userId]
+            );
+            const timesUsed = parseInt(usageRes.rows[0].count);
+            const maxPerUser = promo.max_uses_per_user || 1;
+            if (timesUsed >= maxPerUser)
+                return res.status(400).json({ success: false, message: 'You have already used this promo code.' });
+        }
+
+        // Check first order only
+        if (promo.first_order_only && userId) {
+            const orderCount = await db.query(
+                "SELECT COUNT(*) FROM orders WHERE user_id = $1 AND status NOT IN ('cancelled', 'rejected')",
+                [userId]
+            );
+            if (parseInt(orderCount.rows[0].count) > 0)
+                return res.status(400).json({ success: false, message: 'This promo is for first-time orders only.' });
+        }
+
+        // Calculate discount
+        let discount = 0;
+        if (promo.type === 'percentage') {
+            discount = (orderTotal * parseFloat(promo.value)) / 100;
+            if (promo.max_discount) discount = Math.min(discount, parseFloat(promo.max_discount));
+        } else {
+            discount = Math.min(parseFloat(promo.value), orderTotal);
+        }
+
+        res.json({
+            success: true,
+            data: {
+                promo_id: promo.id,
+                code: promo.code,
+                type: promo.type,
+                discount: Math.round(discount * 100) / 100,
+                description: promo.type === 'percentage'
+                    ? `${promo.value}% off${promo.max_discount ? ` (max ₹${promo.max_discount})` : ''}`
+                    : `₹${promo.value} off`,
+            }
+        });
+    } catch (e) { next(e); }
+};
+
+// ─── Featured Restaurants ──────────────────────────────────────────────────────
+const toggleFeaturedRestaurant = async (req, res, next) => {
+    try {
+        const { restaurantId } = req.params;
+        const { rows } = await db.query(
+            'UPDATE restaurants SET is_featured = NOT is_featured WHERE id = $1 RETURNING id, name, is_featured',
+            [restaurantId]
+        );
+        if (rows.length === 0) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+        res.json({ success: true, data: rows[0], message: `Restaurant ${rows[0].is_featured ? 'featured' : 'unfeatured'}` });
     } catch (e) { next(e); }
 };
 
@@ -342,7 +445,36 @@ const deleteZone = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 
-const sendBroadcastNotification = async (req, res, next) => res.json({ message: 'TODO' });
+const sendBroadcastNotification = async (req, res, next) => {
+    try {
+        const { title, body, target_role, url } = req.body;
+        if (!title || !body) return res.status(400).json({ success: false, message: 'Title and body are required' });
+        
+        // Fetch all push subscriptions, optionally filtered by role
+        let query = `
+            SELECT ps.user_id, ps.subscription
+            FROM push_subscriptions ps
+            JOIN users u ON u.id = ps.user_id
+        `;
+        const params = [];
+        if (target_role && target_role !== 'all') {
+            query += ' WHERE u.role = $1';
+            params.push(target_role);
+        }
+
+        const { rows } = await db.query(query, params);
+        if (rows.length === 0) return res.json({ success: true, message: 'No subscribers found for the target.', sent: 0 });
+
+        // Send to all concurrently
+        const promises = rows.map(row =>
+            sendWebPush(row.user_id, title, body, { url: url || '/', broadcast: true })
+              .catch(e => console.error(`Broadcast failed for ${row.user_id}:`, e.message))
+        );
+        await Promise.allSettled(promises);
+
+        res.json({ success: true, message: `Notification sent to ${rows.length} subscriber(s).`, sent: rows.length });
+    } catch (e) { next(e); }
+};
 const getReports = async (req, res, next) => res.json({ success: true, data: {} });
 const getPayouts = async (req, res, next) => res.json({ success: true, data: { payouts: [] } });
 const processPayouts = async (req, res, next) => res.json({ success: true, message: 'Processed' });
@@ -350,7 +482,8 @@ const processPayouts = async (req, res, next) => res.json({ success: true, messa
 module.exports = {
     getDashboard, getUsers, toggleUserStatus, getAllRestaurants, deleteRestaurant, approveRestaurant,
     verifyDeliveryPartner, getDeliveryPartners, getAllOrders,
-    getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode,
+    getPromoCodes, createPromoCode, updatePromoCode, deletePromoCode, validatePromoCode,
+    toggleFeaturedRestaurant,
     getBanners, createBanner, updateBanner, deleteBanner,
     getSettings, updateSettings, sendBroadcastNotification, getReports, getPayouts, processPayouts,
     getZones, createZone, updateZone, deleteZone

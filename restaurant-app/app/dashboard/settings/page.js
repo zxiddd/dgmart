@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Save, Loader2 } from 'lucide-react';
-import ImageUpload from '../../../components/ImageUpload';
+import ImageUpload from '@/components/ImageUpload';
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
