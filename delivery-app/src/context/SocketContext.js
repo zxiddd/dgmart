@@ -112,8 +112,24 @@ export const SocketProvider = ({ children }) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('delivery:join');
       setIsOnline(true);
+      fetchAvailableOrders();
     }
   }, []);
+
+  const fetchAvailableOrders = useCallback(async () => {
+    try {
+      let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.degloormart.in/api';
+      const res = await fetch(`${backendUrl}/delivery/available-orders`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setAvailableOrders(data.data.orders || data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch available orders:', err);
+    }
+  }, [session]);
 
   const goOffline = useCallback(() => {
     if (socketRef.current?.connected) {
@@ -141,6 +157,7 @@ export const SocketProvider = ({ children }) => {
         goOnline,
         goOffline,
         claimOrder,
+        fetchAvailableOrders,
       }}
     >
       {children}

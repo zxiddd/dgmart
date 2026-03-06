@@ -36,4 +36,8 @@ api.interceptors.response.use(
   }
 );
 
+export const setApiToken = (token) => {
+  cachedToken = token;
+};
+
 export default api;

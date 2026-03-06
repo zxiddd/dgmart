@@ -223,7 +223,7 @@ export default function CartScreen() {
                             const options = {
                                 description: 'Ordering from Degloor Mart',
                                 currency: 'INR',
-                                key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || res.data.razorpay_key_id,
+                                key: (res.data.razorpay_key_id || process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '').trim(),
                                 amount: Math.round(res.data.order.total * 100),
                                 name: 'Degloor Mart',
                                 order_id: res.data.order.razorpay_order_id,
@@ -252,6 +252,14 @@ export default function CartScreen() {
                         } catch (paymentErr) {
                             setOrderStatus('idle');
                             Alert.alert('Payment Cancelled', 'You cancelled the payment or it failed.');
+                            // Clean up the pending order on the backend
+                            try {
+                                await orderAPI.cancel(res.data.order.id, { 
+                                    cancellation_reason: 'Payment failed or cancelled by user' 
+                                });
+                            } catch (cancelErr) {
+                                console.log('Failed to clean up pending order:', cancelErr.message);
+                            }
                             return;
                         }
                     } else {

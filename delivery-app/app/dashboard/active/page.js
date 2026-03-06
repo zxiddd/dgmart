@@ -32,8 +32,8 @@ export default function ActiveOrderPage() {
   const loadActiveOrder = useCallback(async () => {
     try {
       const res = await api.get('/delivery/orders');
-      const active = res.data?.assignments?.find(
-        (a) => ['accepted_by_driver', 'picked_up', 'out_for_delivery', 'assigned'].includes(a.order_status || a.status)
+      const active = (res.data?.active || []).find(
+        (a) => ['accepted_by_driver', 'picked_up', 'out_for_delivery', 'assigned', 'accepted'].includes(a.order_status || a.status)
       );
       if (active) setOrder(active);
       else if (activeOrder) setOrder(activeOrder);
@@ -63,6 +63,7 @@ export default function ActiveOrderPage() {
     setUpdating(true);
     try {
       const assignmentId = order?.assignment_id || order?.id;
+      if (!assignmentId) throw new Error('Assignment ID not found. Please refresh.');
       await api.put(`/delivery/orders/${assignmentId}/status`, { status: newStatus });
       setOrder((prev) => ({ ...prev, order_status: newStatus, status: newStatus }));
       setActiveOrder((prev) => prev ? { ...prev, order_status: newStatus, status: newStatus } : prev);
@@ -78,6 +79,7 @@ export default function ActiveOrderPage() {
     setUpdating(true);
     try {
       const assignmentId = order?.assignment_id || order?.id;
+      if (!assignmentId) throw new Error('Assignment ID not found. Please refresh.');
       const res = await api.put(`/delivery/orders/${assignmentId}/status`, {
         status: 'delivered',
         otp,

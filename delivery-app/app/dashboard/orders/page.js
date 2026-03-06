@@ -25,7 +25,7 @@ export default function OrdersPage() {
       else if (filter === 'This Month') params.append('period', 'month');
 
       const res = await api.get(`/delivery/history?${params}`);
-      const data = res.data?.assignments || res.data?.deliveries || res.data?.orders || [];
+      const data = res.data?.history || res.data?.data?.history || res.data?.assignments || [];
       const total = res.data?.total || data.length;
 
       if (reset || pageNum === 1) {

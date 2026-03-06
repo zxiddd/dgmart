@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/src/config/supabase';
 import { useRouter } from 'next/navigation';
-import api from '@/src/lib/api';
+import api, { setApiToken } from '@/src/lib/api';
 
 const AuthContext = createContext({});
 
@@ -38,6 +38,9 @@ export const AuthProvider = ({ children }) => {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
+        if (initialSession?.access_token) {
+          setApiToken(initialSession.access_token);
+        }
         if (initialSession?.user) {
           await fetchProfile();
         }
@@ -54,6 +57,9 @@ export const AuthProvider = ({ children }) => {
       // Avoid redundant work if session hasn't actually changed meaningfully for profile
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      if (currentSession?.access_token) {
+        setApiToken(currentSession.access_token);
+      }
       if (currentSession?.user) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || !profile) {
           await fetchProfile();

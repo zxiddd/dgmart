@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const { profile, fetchProfile } = useAuth();
   const {
     availableOrders, activeOrder, isOnline, setIsOnline,
-    goOnline, goOffline, claimOrder, setActiveOrder,
+    goOnline, goOffline, claimOrder, setActiveOrder, fetchAvailableOrders,
   } = useSocket();
   const router = useRouter();
 
@@ -50,7 +50,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadStats();
-    loadOnlineStatus();
+    loadOnlineStatus().then(() => {
+      if (isOnline) fetchAvailableOrders();
+    });
   }, []);
 
   // Poll every 30s while unverified to auto-detect admin verification
@@ -121,13 +123,12 @@ export default function DashboardPage() {
     setClaimingId(order.order_id);
     try {
       const res = await api.post(`/delivery/orders/${order.order_id}/claim`);
-      claimOrder(order.order_id);
+      const assignmentId = res.data?.assignment_id || res.data?.data?.assignment_id || res.data?.id;
+      
       setActiveOrder({
         ...order,
-        assignment_id: res.data?.assignment?.id || res.data?.id,
+        assignment_id: assignmentId,
         status: 'accepted_by_driver',
-        ...(res.data?.order || {}),
-        ...(res.data?.assignment || {}),
       });
       toast.success('Order accepted! 🎉');
       router.push('/dashboard/active');
