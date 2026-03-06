@@ -202,6 +202,11 @@ const createOrder = async (req, res, next) => {
                             }
                             promoId = promo.id;
                             await client.query('UPDATE promo_codes SET used_count = used_count + 1 WHERE id = $1', [promo.id]);
+                            // Track per-user usage
+                            await client.query(
+                                'INSERT INTO promo_code_usages (promo_id, user_id, used_at) VALUES ($1, $2, NOW())',
+                                [promo.id, userId]
+                            );
                         }
                     }
                 }

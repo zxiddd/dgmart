@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
-import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle } from 'lucide-react';
+import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle, ShieldShield, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -159,8 +159,30 @@ export default function DashboardPage() {
         </div>
     );
 
+    const isAdmin = user && ['admin', 'super_admin'].includes(user.role);
+
     return (
         <div className="p-4 space-y-6 pb-24">
+            {/* Admin Portal Quick Access */}
+            {isAdmin && (
+                <div 
+                    onClick={() => router.push('/admin')}
+                    className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center justify-between cursor-pointer border border-indigo-400 group hover:bg-indigo-700 transition-all"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/20 p-2 rounded-xl">
+                            <ShieldShield className="text-white" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-white font-bold">Global Admin Portal</h3>
+                            <p className="text-indigo-100 text-[10px] font-medium uppercase tracking-wider">Manage platform features</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full text-white text-xs font-bold border border-white/20 group-hover:bg-white/20">
+                        OPEN <ChevronRight size={14} />
+                    </div>
+                </div>
+            )}
             {/* Header section styling matching Delivery App */}
             <header className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                 <div>

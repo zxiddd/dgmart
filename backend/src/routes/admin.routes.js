@@ -5,15 +5,18 @@ const { validate } = require('../middleware/validate');
 const { promoCodeSchema, bannerSchema, platformSettingsSchema } = require('../validators/schemas');
 const adminController = require('../controllers/adminController');
 
-// All admin routes require authentication + admin role
-router.use(authenticate, isAdmin);
-
 // Dashboard
-router.get('/dashboard', adminController.getDashboard);
+router.get('/dashboard', authenticate, isAdmin, adminController.getDashboard);
 
 // Users
-router.get('/users', adminController.getUsers);
-router.put('/users/:userId/toggle', adminController.toggleUserStatus);
+router.get('/users', authenticate, isAdmin, adminController.getUsers);
+router.put('/users/:userId/toggle', authenticate, isAdmin, adminController.toggleUserStatus);
+
+// Public validate endpoint (used at checkout) - auth only required for user context
+router.get('/promos/:code/validate', authenticate, adminController.validatePromoCode);
+
+// All other admin routes require authentication + admin role
+router.use(authenticate, isAdmin);
 
 // Restaurants
 router.get('/restaurants', adminController.getAllRestaurants);
@@ -33,8 +36,6 @@ router.get('/promos', adminController.getPromoCodes);
 router.post('/promos', adminController.createPromoCode);
 router.put('/promos/:promoId', adminController.updatePromoCode);
 router.delete('/promos/:promoId', adminController.deletePromoCode);
-// Public validate endpoint (used at checkout) - auth only required for user context
-router.get('/promos/:code/validate', adminController.validatePromoCode);
 
 // Banners
 router.get('/banners', adminController.getBanners);
