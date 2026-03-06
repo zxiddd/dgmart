@@ -37,8 +37,15 @@ export default function TrackingScreen() {
 
         socket.on('order_update', (data) => {
             console.log('Order update received:', data);
-            if (data.order_id === id) {
-                setOrder(prev => ({ ...prev, status: data.status }));
+            if (data.order_id === id || data.id === id) {
+                fetchOrder();
+            }
+        });
+
+        socket.on('order_status_update', (data) => {
+            console.log('Order status update received:', data);
+            if (data.order_id === id || data.id === id) {
+                fetchOrder();
             }
         });
 
@@ -134,7 +141,7 @@ export default function TrackingScreen() {
                     <MaterialIcons name="arrow-back" size={24} color={COLORS.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Order Tracking</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => Linking.openURL('tel:+917773994316')}>
                     <MaterialIcons name="headset-mic" size={24} color={COLORS.primary} />
                 </TouchableOpacity>
             </View>

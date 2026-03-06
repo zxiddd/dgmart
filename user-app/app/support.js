@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SIZES } from '../src/config/theme';
@@ -14,6 +14,13 @@ export default function SupportScreen() {
                 <Text style={styles.headerTitle}>Help & Support</Text>
             </View>
             <ScrollView contentContainerStyle={styles.content}>
+                <TouchableOpacity style={styles.item} onPress={() => Linking.openURL('tel:+917773994316')}>
+                    <View style={styles.row}>
+                        <MaterialIcons name="call" size={24} color={COLORS.primary} />
+                        <Text style={styles.itemText}>Call us (+91 7773994316)</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={24} color={COLORS.textLight} />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.item}>
                     <View style={styles.row}>
                         <MaterialIcons name="chat" size={24} color={COLORS.success} />

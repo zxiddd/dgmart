@@ -356,8 +356,13 @@ const updateDeliveryStatus = async (req, res, next) => {
             if (orderDetailRes.rows.length > 0) {
                 const { customer_id, restaurant_owner_id, order_number } = orderDetailRes.rows[0];
 
-                // 1. Notify Customer
+                // 1. Notify Customer matching room and order room
                 io.to(`user:${customer_id}`).emit('order_status_update', {
+                    order_id: assignment.order_id,
+                    order_number,
+                    status: status
+                });
+                io.to(`order:${assignment.order_id}`).emit('order_status_update', {
                     order_id: assignment.order_id,
                     order_number,
                     status: status
