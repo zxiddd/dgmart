@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Animated, StatusBar, Image, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/authStore';
@@ -19,6 +19,8 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
 
     // UI states
     const [step, setStep] = useState('form'); // 'form' or 'otp'
@@ -54,9 +56,21 @@ export default function LoginScreen() {
     const toggleMode = () => {
         animateTransition(() => {
             setIsLogin(!isLogin);
+            setIsForgotPassword(false);
             setStep('form');
             setOtp('');
             setPassword('');
+        });
+    };
+
+    const toggleForgotPassword = () => {
+        animateTransition(() => {
+            setIsForgotPassword(!isForgotPassword);
+            setIsLogin(false);
+            setStep('form');
+            setOtp('');
+            setPassword('');
+            setNewPassword('');
         });
     };
 
@@ -110,6 +124,19 @@ export default function LoginScreen() {
             handleSendOtp();
         } else {
             handleFinalRegister();
+        }
+    };
+
+    const handleForgotPasswordAction = async () => {
+        if (!phone || phone.length < 10) {
+            Toast.show({ type: 'error', text1: 'Phone Required', text2: 'Please enter your phone number' });
+            return;
+        }
+
+        if (step === 'form') {
+            handleSendOtp();
+        } else {
+            handleResetPassword();
         }
     };
 
@@ -181,6 +208,37 @@ export default function LoginScreen() {
         }
     };
 
+    const handleResetPassword = async () => {
+        if (!otp || otp.length < 6 || !newPassword || newPassword.length < 6) {
+            Toast.show({ type: 'error', text1: 'Invalid Details', text2: 'Enter 6-digit OTP and new password (min 6 chars)' });
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://YOUR_LOCAL_IP:3000/api';
+            const res = await fetch(`${API_URL}/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhone, otp, newPassword })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Failed to reset password');
+            }
+
+            Toast.show({ type: 'success', text1: 'Success', text2: 'Password reset! You can now login.' });
+            toggleMode(); // Go back to login
+        } catch (error) {
+            Toast.show({ type: 'error', text1: 'Reset Failed', text2: error.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -196,16 +254,18 @@ export default function LoginScreen() {
                             />
                         </View>
                         <Text style={styles.appName}>DEGLOOR MART</Text>
-                        <Text style={styles.title}>{step === 'otp' ? 'Verify Phone' : isLogin ? 'Welcome Back' : 'Create Account'}</Text>
+                        <Text style={styles.title}>
+                            {isForgotPassword ? (step === 'otp' ? 'Set New Password' : 'Reset Password') : step === 'otp' ? 'Verify Phone' : isLogin ? 'Welcome Back' : 'Create Account'}
+                        </Text>
                         <Text style={styles.subtitle}>
-                            {step === 'otp' ? `Enter the OTP sent to ${countryCode} ${phone}` : isLogin ? 'Login with your phone and password' : 'Sign up to get started'}
+                            {step === 'otp' ? `Enter the OTP sent to ${countryCode} ${phone}` : isForgotPassword ? 'Enter your phone to receive an OTP' : isLogin ? 'Login with your phone and password' : 'Sign up to get started'}
                         </Text>
                     </View>
 
                     <View style={styles.form}>
                         {step === 'form' ? (
                             <>
-                                {!isLogin && (
+                                {!isLogin && !isForgotPassword && (
                                     <View>
                                         <View style={styles.inputContainer}>
                                             <Text style={styles.label}>FULL NAME</Text>
@@ -261,47 +321,78 @@ export default function LoginScreen() {
                                     </View>
                                 </View>
 
-                                <View style={styles.inputContainer}>
-                                    <Text style={styles.label}>PASSWORD</Text>
-                                    <View style={styles.inputWrapper}>
-                                        <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Enter your password"
-                                            placeholderTextColor={COLORS.textLight}
-                                            value={password}
-                                            onChangeText={setPassword}
-                                            secureTextEntry={!showPassword}
-                                            editable={!loading}
-                                        />
-                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                                            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
-                                        </TouchableOpacity>
+                                {!isForgotPassword && (
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.label}>PASSWORD</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="Enter your password"
+                                                placeholderTextColor={COLORS.textLight}
+                                                value={password}
+                                                onChangeText={setPassword}
+                                                secureTextEntry={!showPassword}
+                                                editable={!loading}
+                                            />
+                                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                                                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                </View>
+                                )}
+
+                                {isLogin && (
+                                    <TouchableOpacity style={styles.forgotPasswordBtn} onPress={toggleForgotPassword} disabled={loading}>
+                                        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                                    </TouchableOpacity>
+                                )}
                             </>
                         ) : (
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.label}>OTP CODE</Text>
-                                <View style={styles.inputWrapper}>
-                                    <MaterialIcons name="message" size={20} color={COLORS.primary} />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Enter 6-digit OTP"
-                                        placeholderTextColor={COLORS.textLight}
-                                        value={otp}
-                                        onChangeText={setOtp}
-                                        keyboardType="number-pad"
-                                        maxLength={6}
-                                        editable={!loading}
-                                    />
+                            <View style={styles.otpResetContainer}>
+                                <View style={styles.inputContainer}>
+                                    <Text style={styles.label}>OTP CODE</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <MaterialIcons name="message" size={20} color={COLORS.primary} />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Enter 6-digit OTP"
+                                            placeholderTextColor={COLORS.textLight}
+                                            value={otp}
+                                            onChangeText={setOtp}
+                                            keyboardType="number-pad"
+                                            maxLength={6}
+                                            editable={!loading}
+                                        />
+                                    </View>
                                 </View>
+
+                                {isForgotPassword && (
+                                    <View style={styles.inputContainer}>
+                                        <Text style={styles.label}>NEW PASSWORD</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />
+                                            <TextInput
+                                                style={styles.input}
+                                                placeholder="Enter new password"
+                                                placeholderTextColor={COLORS.textLight}
+                                                value={newPassword}
+                                                onChangeText={setNewPassword}
+                                                secureTextEntry={!showPassword}
+                                                editable={!loading}
+                                            />
+                                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                                                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         )}
 
                         <TouchableOpacity
                             style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={step === 'otp' ? handleFinalRegister : isLogin ? handleLogin : handleRegisterAction}
+                            onPress={isForgotPassword ? handleForgotPasswordAction : step === 'otp' ? handleFinalRegister : isLogin ? handleLogin : handleRegisterAction}
                             disabled={loading}
                             activeOpacity={0.8}
                         >
@@ -309,7 +400,7 @@ export default function LoginScreen() {
                                 <ActivityIndicator color={COLORS.white} />
                             ) : (
                                 <Text style={styles.buttonText}>
-                                    {step === 'otp' ? 'VERIFY & REGISTER' : isLogin ? 'LOGIN' : (requireVerification ? 'SEND OTP & REGISTER' : 'REGISTER')}
+                                    {isForgotPassword ? (step === 'otp' ? 'RESET PASSWORD' : 'SEND RESET OTP') : step === 'otp' ? 'VERIFY & REGISTER' : isLogin ? 'LOGIN' : (requireVerification ? 'SEND OTP & REGISTER' : 'REGISTER')}
                                 </Text>
                             )}
                         </TouchableOpacity>
@@ -317,21 +408,24 @@ export default function LoginScreen() {
                         {step === 'form' && (
                             <TouchableOpacity style={styles.switchModeBtn} onPress={toggleMode} disabled={loading}>
                                 <Text style={styles.switchModeText}>
-                                    {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+                                    {isLogin || isForgotPassword ? "Don't have an account? Sign Up" : "Already have an account? Login"}
                                 </Text>
                             </TouchableOpacity>
                         )}
 
-                        {step === 'otp' && (
+                        {(step === 'otp' || isForgotPassword) && (
                             <TouchableOpacity
                                 style={styles.switchModeBtn}
                                 onPress={() => animateTransition(() => {
                                     setStep('form');
+                                    setIsForgotPassword(false);
+                                    setIsLogin(true);
                                     setOtp('');
+                                    setNewPassword('');
                                 })}
                                 disabled={loading}
                             >
-                                <Text style={styles.switchModeText}>Back to Registration</Text>
+                                <Text style={styles.switchModeText}>Back to Login</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -489,5 +583,17 @@ const styles = StyleSheet.create({
         color: COLORS.textSecondary,
         fontFamily: FONTS.medium,
         fontSize: SIZES.sm,
+    },
+    forgotPasswordBtn: {
+        alignSelf: 'flex-end',
+        paddingVertical: 4,
+    },
+    forgotPasswordText: {
+        color: COLORS.primary,
+        fontFamily: FONTS.medium,
+        fontSize: SIZES.sm,
+    },
+    otpResetContainer: {
+        gap: 16,
     }
 });

@@ -393,4 +393,59 @@ const verifyExistingPhone = async (req, res) => {
     }
 };
 
-module.exports = { sendOtp, verifyOtp, registerWithPassword, loginWithPassword, verifyExistingPhone };
+/**
+ * POST /api/auth/reset-password
+ * Reset password using OTP verification
+ */
+const resetPassword = async (req, res) => {
+    try {
+        const { phone, otp, newPassword } = req.body;
+        if (!phone || !otp || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Phone, OTP, and New Password are required.' });
+        }
+
+        const stored = otpStore.get(phone);
+        if (!stored) {
+            return res.status(400).json({ success: false, message: 'No OTP found. Please request a new one.' });
+        }
+        if (Date.now() > stored.expiresAt) {
+            otpStore.delete(phone);
+            return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+        }
+        if (stored.otp !== otp.toString()) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+        }
+
+        // OTP valid — clean up
+        otpStore.delete(phone);
+
+        // Normalize phone: strip +91
+        const normalizedPhone = phone.replace(/^\+91/, '');
+
+        // Find user by phone to get their Supabase ID
+        const { rows } = await db.query('SELECT id FROM users WHERE phone = $1', [normalizedPhone]);
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'No account found with this phone number.' });
+        }
+
+        const userId = rows[0].id;
+
+        // Update password in Supabase Auth
+        const supabase = require('../config/supabase');
+        const { error } = await supabase.auth.admin.updateUserById(userId, {
+            password: newPassword
+        });
+
+        if (error) {
+            console.error('Reset password error:', error.message);
+            return res.status(500).json({ success: false, message: 'Failed to reset password.' });
+        }
+
+        return res.json({ success: true, message: 'Password reset successfully. You can now login with your new password.' });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        return res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+};
+
+module.exports = { sendOtp, verifyOtp, registerWithPassword, loginWithPassword, verifyExistingPhone, resetPassword };

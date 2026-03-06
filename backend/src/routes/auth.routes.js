@@ -17,5 +17,6 @@ router.post('/verify-otp', otpController.verifyOtp);
 router.post('/register-with-password', otpController.registerWithPassword);
 router.post('/login-with-password', otpController.loginWithPassword);
 router.post('/verify-existing-phone', authenticate, otpController.verifyExistingPhone);
+router.post('/reset-password', otpController.resetPassword);
 
 module.exports = router;
