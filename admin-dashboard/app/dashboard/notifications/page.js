@@ -23,8 +23,8 @@ export default function NotificationsPage() {
         try {
             const res = await api.post('/admin/notifications/broadcast', {
                 title,
-                message,
-                role: target === 'all' ? null : target
+                body: message,
+                target_role: target === 'all' ? null : target
             });
 
             if (res.data.success) {
