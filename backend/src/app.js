@@ -64,8 +64,9 @@ app.use(helmet());
 // CORS
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, Postman, etc.)
-        if (!origin || config.cors.allowedOrigins.includes(origin)) {
+        const isAllowedVercel = origin && (origin.endsWith('.vercel.app') && origin.includes('dgmart'));
+        
+        if (!origin || config.cors.allowedOrigins.includes(origin) || isAllowedVercel) {
             callback(null, true);
         } else if (config.nodeEnv === 'development') {
             callback(null, true); // Allow all in development
