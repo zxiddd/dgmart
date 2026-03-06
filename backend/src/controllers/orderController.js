@@ -387,15 +387,18 @@ const getOrder = async (req, res, next) => {
         }
 
         const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1', [id]);
-        const delRes = await db.query('SELECT da.*, u.name as partner_name, u.phone as partner_phone FROM delivery_assignments da LEFT JOIN users u ON da.partner_id = u.id WHERE da.order_id = $1', [id]);
+        const delRes = await db.query(`
+            SELECT da.*, u.name as partner_name, u.phone as partner_phone 
+            FROM delivery_assignments da 
+            LEFT JOIN users u ON da.partner_id = u.id 
+            WHERE da.order_id = $1 AND da.status NOT IN ('rejected', 'cancelled')
+            ORDER BY da.created_at DESC LIMIT 1
+        `, [id]);
 
         const delivery = delRes.rows[0] || null;
 
-        // Show rider details to user as soon as accepted
-        if (req.user.role === 'customer' && delivery && !['accepted_by_driver', 'picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
-            delivery.partner_name = 'Assigning...';
-            delivery.partner_phone = null;
-        }
+        // If a delivery partner is actively assigned, their details will be shown to the user immediately.
+        // No need to hide them based on the order.status (which can go back to 'preparing' if restaurant toggles it).
 
         res.json({ success: true, data: { order, items: itemsRes.rows, delivery } });
     } catch (e) {
