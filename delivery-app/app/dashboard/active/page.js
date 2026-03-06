@@ -36,6 +36,11 @@ export default function ActiveOrderPage() {
       const res = await api.get('/delivery/orders');
       const activeList = res.data?.active || [];
       
+      // Keep SocketContext activeOrders in sync so socket updates can find the order to mutate
+      if (activeList.length > 0) {
+        setActiveOrders(activeList);
+      }
+
       let active;
       if (orderId) {
         active = activeList.find(o => (o.order_id || o.id) === orderId);
@@ -55,7 +60,7 @@ export default function ActiveOrderPage() {
         if (active) setOrder(active);
       }
     }
-  }, [activeOrders, orderId]);
+  }, [activeOrders, orderId, setActiveOrders]);
 
   useEffect(() => {
     loadActiveOrder();
@@ -70,7 +75,11 @@ export default function ActiveOrderPage() {
     }
   }, [activeOrders, orderId]);
 
-  const currentStatus = order?.order_status || order?.status || 'accepted_by_driver';
+  let currentStatus = order?.order_status || order?.status || 'accepted_by_driver';
+  // Normalize intermediate restaurant statuses for the rider stepper
+  if (['preparing', 'ready', 'searching_rider'].includes(currentStatus)) {
+    currentStatus = 'accepted_by_driver';
+  }
   const currentStepIdx = STEPS.findIndex((s) => s.key === currentStatus);
 
   const handleStatusUpdate = async (newStatus) => {

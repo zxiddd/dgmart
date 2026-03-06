@@ -469,6 +469,15 @@ const updateOrderStatus = async (req, res, next) => {
             io.to(`order:${id}`).emit('order_update', payload);
             io.to(`restaurant:${order.restaurant_id}`).emit('order_status_updated', payload);
             io.to('admin:dashboard').emit('order_status_updated', payload);
+            
+            // Notify assigned driver if exists
+            const assignRes = await client.query('SELECT partner_id, id as assignment_id FROM delivery_assignments WHERE order_id = $1 AND status NOT IN (\'rejected\', \'cancelled\') ORDER BY created_at DESC LIMIT 1', [id]);
+            if (assignRes.rows.length > 0) {
+                io.to(`user:${assignRes.rows[0].partner_id}`).emit('assignment_status_update', {
+                    ...payload,
+                    assignment_id: assignRes.rows[0].assignment_id
+                });
+            }
         }
 
         res.json({ success: true, message: 'Updated' });
