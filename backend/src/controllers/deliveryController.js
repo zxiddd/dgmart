@@ -115,7 +115,7 @@ const claimOrder = async (req, res, next) => {
         // 2. Create assignment
         const assignRes = await client.query(`
             INSERT INTO delivery_assignments (order_id, partner_id, status) 
-            VALUES ($1, $2, 'accepted') 
+            VALUES ($1, $2, 'accepted_by_driver') 
             RETURNING id
         `, [orderId, userId]);
 
@@ -240,7 +240,7 @@ const respondToAssignment = async (req, res, next) => {
         logDebug(`Processing action '${action}' for assignment ${assignmentId} by user ${req.user.id}`);
 
         if (action === 'accept') {
-            await client.query("UPDATE delivery_assignments SET status = 'accepted', accepted_at = NOW() WHERE id = $1", [assignmentId]);
+            await client.query("UPDATE delivery_assignments SET status = 'accepted_by_driver', accepted_at = NOW() WHERE id = $1", [assignmentId]);
             await client.query("UPDATE orders SET status = 'accepted_by_driver' WHERE id = $1", [assignment.order_id]);
             res.json({ success: true, message: 'Accepted' });
         } else {

@@ -25,7 +25,7 @@ ALTER TABLE public.delivery_assignments
 ADD CONSTRAINT delivery_assignments_status_check 
 CHECK (status IN (
     'assigned', 'accepted', 'rejected', 'picked_up', 'out_for_delivery', 
-    'delivered', 'cancelled'
+    'delivered', 'cancelled', 'accepted_by_driver'
 ));
 
 -- 4. FIX: Handle Notifications Constraint Violation

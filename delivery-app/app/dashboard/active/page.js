@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import { clsx } from 'clsx';
 
 const STEPS = [
-  { key: 'accepted', label: 'Order Accepted', sub: 'Head to the restaurant', emoji: '✅' },
+  { key: 'accepted_by_driver', label: 'Order Accepted', sub: 'Head to the restaurant', emoji: '✅' },
   { key: 'picked_up', label: 'Picked Up', sub: 'Collected from restaurant', emoji: '🛵', action: 'MARK PICKED UP' },
   { key: 'out_for_delivery', label: 'Out for Delivery', sub: 'On the way to customer', emoji: '🏎️', action: 'OUT FOR DELIVERY' },
   { key: 'delivered', label: 'Delivered', sub: 'Order handed to customer', emoji: '🎉', action: 'MARK DELIVERED' },
