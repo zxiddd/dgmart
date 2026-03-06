@@ -8,12 +8,12 @@ const subscribe = async (req, res, next) => {
         const { subscription } = req.body;
         const userId = req.user.id;
 
-        if (!subscription) {
-            return res.status(400).json({ success: false, message: 'Subscription is required' });
+        console.log(`📡 [TRACE] Attempting to subscribe user ${userId} to Web Push...`);
+
+        if (!subscription || !subscription.endpoint) {
+            return res.status(400).json({ success: false, message: 'Subscription with endpoint is required' });
         }
 
-        // Store or update subscription
-        // We use the endpoint as a unique identifier for the subscription
         const endpoint = subscription.endpoint;
 
         await db.query(`
@@ -23,8 +23,10 @@ const subscribe = async (req, res, next) => {
             DO UPDATE SET user_id = $1, subscription = $2, updated_at = NOW()
         `, [userId, JSON.stringify(subscription), endpoint]);
 
+        console.log(`✅ [TRACE] Web Push subscription saved for user ${userId}`);
         res.json({ success: true, message: 'Subscribed successfully' });
     } catch (e) {
+        console.error(`❌ [TRACE] Web Push Subscribe error:`, e.message);
         next(e);
     }
 };

@@ -153,18 +153,26 @@ const saveFcmToken = async (req, res) => {
         const { fcm_token } = req.body;
         const userId = req.user.id;
 
+        console.log(`📱 [TRACE] Attempting to save FCM token for user ${userId}:`, fcm_token.substring(0, 10) + '...');
+
         if (!fcm_token) {
             return res.status(400).json({ success: false, message: 'fcm_token is required' });
         }
 
-        await db.query(
-            `UPDATE users SET fcm_token = $1 WHERE id = $2`,
+        const result = await db.query(
+            `UPDATE users SET fcm_token = $1 WHERE id = $2 RETURNING id`,
             [fcm_token, userId]
         );
 
+        if (result.rowCount === 0) {
+            console.log(`❌ [TRACE] User ${userId} not found in DB during token update.`);
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        console.log(`✅ [TRACE] FCM token saved for user ${userId}`);
         return res.json({ success: true, message: 'FCM token saved.' });
     } catch (err) {
-        console.error('Save FCM token error:', err);
+        console.error('❌ [TRACE] Save FCM token error:', err);
         return res.status(500).json({ success: false, message: 'Failed to save token.' });
     }
 };
