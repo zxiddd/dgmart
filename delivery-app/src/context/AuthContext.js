@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/src/config/supabase';
 import { useRouter } from 'next/navigation';
 import api from '@/src/lib/api';
