@@ -9,7 +9,7 @@ import io from 'socket.io-client';
 // Use same base URL as API but without /api suffix
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://172.20.10.2:5000';
 
-const TRACKING_STEPS = ['placed', 'confirmed', 'preparing', 'ready', 'picked_up', 'delivered'];
+const TRACKING_STEPS = ['placed', 'confirmed', 'accepted_by_driver', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered'];
 
 export default function TrackingScreen() {
     const { id } = useLocalSearchParams();
@@ -153,6 +153,7 @@ export default function TrackingScreen() {
                             {order.status === 'confirmed' && 'Restaurant is preparing items ✅'}
                             {order.status === 'ready' && 'Your order is ready for pickup 📦'}
                             {order.status === 'picked_up' && 'Delivery partner is headed your way 🏍️'}
+                            {order.status === 'out_for_delivery' && 'Delivery partner is near you 🏎️'}
                             {order.status === 'delivered' && 'Order delivered successfully 🎉'}
                             {order.status === 'cancelled' && 'This order was cancelled ❌'}
                         </Text>
@@ -166,8 +167,8 @@ export default function TrackingScreen() {
                     )}
                 </View>
 
-                {/* Delivery OTP Section (New) */}
-                {order.status === 'picked_up' && (
+                {/* Delivery OTP Section (Moved & Fixed) */}
+                {['picked_up', 'out_for_delivery'].includes(order.status) && (
                     <View style={styles.otpCard}>
                         <View style={styles.otpHeader}>
                             <MaterialIcons name="lock-outline" size={20} color={COLORS.primary} />

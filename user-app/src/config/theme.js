@@ -114,6 +114,7 @@ export const SHADOWS = {
 export const ORDER_STATUS_CONFIG = {
     placed: { label: 'Placed', color: '#3B82F6', icon: 'check-circle' },
     confirmed: { label: 'Confirmed', color: '#8B5CF6', icon: 'restaurant' },
+    accepted_by_driver: { label: 'Driver Assigned', color: '#8B5CF6', icon: 'person' },
     preparing: { label: 'Preparing', color: '#F59E0B', icon: 'soup-kitchen' },
     ready: { label: 'Ready', color: '#10B981', icon: 'inventory' },
     picked_up: { label: 'Out for Delivery', color: '#D4AF37', icon: 'delivery-dining' },
