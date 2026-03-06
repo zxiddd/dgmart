@@ -213,6 +213,8 @@ const createOrder = async (req, res, next) => {
         const total = subtotal + deliveryFee + tax - discount + tipAmount;
         const estimatedTime = estimateDeliveryTime(distance, restaurant.avg_prep_time_mins || 20);
 
+        const isOnline = payment_method === PAYMENT_METHOD.RAZORPAY || payment_method === PAYMENT_METHOD.ONLINE;
+
         const orderQuery = `
             INSERT INTO orders (
                 order_number, user_id, restaurant_id, address_id, promo_id,
@@ -225,8 +227,8 @@ const createOrder = async (req, res, next) => {
         `;
         const values = [
             generateOrderNumber(), userId, restaurant_id, address_id, promoId,
-            ORDER_STATUS.PLACED, subtotal, deliveryFee, tax, discount, tipAmount, total,
-            payment_method, payment_method === PAYMENT_METHOD.COD ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.PENDING,
+            isOnline ? ORDER_STATUS.PAYMENT_PENDING : ORDER_STATUS.PLACED, subtotal, deliveryFee, tax, discount, tipAmount, total,
+            payment_method, PAYMENT_STATUS.PENDING,
             special_instructions, address.full_address, address.lat, address.lng, estimatedTime, distance,
             deliveryOtp, customerPhone
         ];
@@ -273,31 +275,38 @@ const createOrder = async (req, res, next) => {
 
         await client.query('COMMIT');
 
-        createNotification(userId, 'Order Placed', `Order ${order.order_number} placed.`, 'order_update', { order_id: order.id });
+        // Only notify restaurant/admin if it's NOT a pending online payment
+        if (!isOnline) {
+            createNotification(userId, 'Order Placed', `Order ${order.order_number} placed.`, 'order_update', { order_id: order.id });
 
-        // Emit socket events so restaurant & admin see this INSTANTLY
+            // Emit socket events so restaurant & admin see this INSTANTLY
+            const io = global.io;
+            if (io) {
+                const newOrderPayload = {
+                    id: order.id,
+                    order_number: order.order_number,
+                    status: order.status,
+                    total: order.total,
+                    subtotal: order.subtotal,
+                    delivery_fee: order.delivery_fee,
+                    payment_method: order.payment_method,
+                    delivery_address: order.delivery_address,
+                    special_instructions: order.special_instructions,
+                    created_at: order.placed_at || new Date().toISOString(),
+                    items: orderItems.map(i => ({ name: i.item_name, quantity: i.quantity })),
+                };
+                // Notify restaurant dashboard
+                io.to(`restaurant:${restaurant_id}`).emit('new_order', newOrderPayload);
+                // Notify all admins
+                io.to('role:admin').emit('new_order', newOrderPayload);
+                io.to('admin:dashboard').emit('new_order', newOrderPayload);
+            }
+        }
+
+        // Always notify the user that order room is ready
         const io = global.io;
         if (io) {
-            const newOrderPayload = {
-                id: order.id,
-                order_number: order.order_number,
-                status: order.status,
-                total: order.total,
-                subtotal: order.subtotal,
-                delivery_fee: order.delivery_fee,
-                payment_method: order.payment_method,
-                delivery_address: order.delivery_address,
-                special_instructions: order.special_instructions,
-                created_at: order.placed_at || new Date().toISOString(),
-                items: orderItems.map(i => ({ name: i.item_name, quantity: i.quantity })),
-            };
-            // Notify restaurant dashboard
-            io.to(`restaurant:${restaurant_id}`).emit('new_order', newOrderPayload);
-            // Notify all admins
-            io.to('role:admin').emit('new_order', newOrderPayload);
-            io.to('admin:dashboard').emit('new_order', newOrderPayload);
-            // Subscribe the user to their order room so they get future updates
-            io.to(`user:${userId}`).emit('order_placed', { order_id: order.id });
+            io.to(`user:${userId}`).emit('order_placed', { order_id: order.id, status: order.status });
         }
 
         res.status(201).json({
@@ -490,7 +499,7 @@ const cancelOrder = async (req, res, next) => {
         if (order.user_id !== req.user.id && !isAdmin) throw new Error('Not authorized to cancel this order');
 
         // Business Rule: Users can't cancel if already preparing/ready/delivered
-        if (!isAdmin && !['placed', 'confirmed'].includes(order.status)) {
+        if (!isAdmin && !['placed', 'confirmed', 'payment_pending'].includes(order.status)) {
             throw new Error(`Cannot cancel order in ${order.status} state. Please contact support.`);
         }
 

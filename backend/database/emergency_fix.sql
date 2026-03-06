@@ -5,7 +5,8 @@
 -- These are critical for the Claim Order flow
 ALTER TABLE public.delivery_assignments 
 ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP WITH TIME ZONE;
 
 -- 2. Expand orders.status CHECK constraint
 -- This allows the system to transition through all necessary states
@@ -15,7 +16,7 @@ ADD CONSTRAINT orders_status_check
 CHECK (status IN (
     'placed', 'confirmed', 'preparing', 'ready', 'searching_rider', 
     'accepted_by_driver', 'picked_up', 'out_for_delivery', 'delivered', 
-    'cancelled', 'refunded'
+    'cancelled', 'refunded', 'payment_pending'
 ));
 
 -- 3. Expand delivery_assignments.status CHECK constraint
@@ -36,3 +37,29 @@ ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_ch
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- 6. Create MISSING Payments Table
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS public.payments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    razorpay_order_id TEXT,
+    razorpay_payment_id TEXT,
+    razorpay_signature TEXT,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency TEXT DEFAULT 'INR',
+    status TEXT DEFAULT 'pending',
+    method TEXT, -- 'razorpay', 'wallet', 'cod'
+    completed_at TIMESTAMP WITH TIME ZONE,
+    refunded_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for payments
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent Policy Creation
+DROP POLICY IF EXISTS "Public payments" ON public.payments;
+CREATE POLICY "Public payments" ON public.payments FOR SELECT USING (true);

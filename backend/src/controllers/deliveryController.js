@@ -67,7 +67,7 @@ const toggleOnlineStatus = async (req, res, next) => {
 const getAvailableOrders = async (req, res, next) => {
     try {
         const query = `
-            SELECT o.*, r.name as restaurant_name, r.lat as restaurant_lat, r.lng as restaurant_lng, r.address as restaurant_address
+            SELECT o.*, o.id as order_id, r.name as restaurant_name, r.lat as restaurant_lat, r.lng as restaurant_lng, r.address as restaurant_address
             FROM orders o
             JOIN restaurants r ON o.restaurant_id = r.id
             WHERE o.status = 'searching_rider'
@@ -171,6 +171,7 @@ const getAssignedOrders = async (req, res, next) => {
 
         const assignmentsRes = await db.query(`
             SELECT da.*, 
+            r.name as restaurant_name, r.address as restaurant_address,
             json_build_object(
                 'id', o.id,
                 'order_number', o.order_number,
@@ -185,6 +186,7 @@ const getAssignedOrders = async (req, res, next) => {
             FROM delivery_assignments da
             JOIN orders o ON da.order_id = o.id
             JOIN users u ON o.user_id = u.id
+            JOIN restaurants r ON o.restaurant_id = r.id
             WHERE da.partner_id = $1
             ORDER BY da.created_at DESC
         `, [uid]);
@@ -194,10 +196,10 @@ const getAssignedOrders = async (req, res, next) => {
 
         const assignments = assignmentsRes.rows;
 
-        const active = assignments.filter(a => ['assigned', 'accepted', 'picked_up'].includes(a.status));
+        const active = assignments.filter(a => ['assigned', 'accepted', 'picked_up', 'out_for_delivery'].includes(a.status));
         const completed = assignments.filter(a => a.status === 'delivered');
 
-        res.json({ success: true, data: { active, completed } });
+        res.json({ success: true, active, completed });
     } catch (e) { next(e); }
 };
 
@@ -210,6 +212,12 @@ const respondToAssignment = async (req, res, next) => {
         await client.query('BEGIN');
         const { assignmentId } = req.params;
         const { action } = req.body;
+
+        // UUID validation guard
+        if (!assignmentId || assignmentId === 'undefined' || !/^[0-9a-f-]{36}$/i.test(assignmentId)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Invalid assignment ID' });
+        }
 
         console.log(`Responding to assignment ${assignmentId} with action ${action}`);
 
@@ -251,6 +259,12 @@ const updateDeliveryStatus = async (req, res, next) => {
         await client.query('BEGIN');
         const { assignmentId } = req.params;
         const { status, otp } = req.body;
+
+        // UUID validation guard
+        if (!assignmentId || assignmentId === 'undefined' || !/^[0-9a-f-]{36}$/i.test(assignmentId)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Invalid ID' });
+        }
 
         // Validate status
         const validStatuses = ['picked_up', 'out_for_delivery', 'delivered'];
@@ -353,12 +367,47 @@ const updateDeliveryStatus = async (req, res, next) => {
 const getEarnings = async (req, res, next) => {
     try {
         const uid = req.user.id;
+        const { period } = req.query;
+        
         const partnerRes = await db.query('SELECT * FROM delivery_partners WHERE user_id = $1', [uid]);
         if (partnerRes.rows.length === 0) return res.status(400).json({ message: 'Not a partner' });
         const partner = partnerRes.rows[0];
-        // ... aggregation queries logic ...
-        // Simplified for now
-        res.json({ success: true, data: { total: { earnings: partner.total_earnings } } });
+
+        let dateFilter = "AND da.delivered_at >= CURRENT_DATE";
+        if (period === 'week') dateFilter = "AND da.delivered_at >= CURRENT_DATE - INTERVAL '7 days'";
+        else if (period === 'month') dateFilter = "AND da.delivered_at >= CURRENT_DATE - INTERVAL '30 days'";
+
+        const statsRes = await db.query(`
+            SELECT 
+                SUM(o.delivery_fee) as period_earnings,
+                COUNT(*) as period_deliveries
+            FROM delivery_assignments da
+            JOIN orders o ON da.order_id = o.id
+            WHERE da.partner_id = $1 AND da.status = 'delivered' ${dateFilter}
+        `, [uid]);
+
+        const stats = statsRes.rows[0];
+
+        // Get some recent orders for the breakdown
+        const ordersRes = await db.query(`
+            SELECT o.id, o.order_number, o.delivery_fee as earning, o.delivered_at, r.name as restaurant_name
+            FROM delivery_assignments da
+            JOIN orders o ON da.order_id = o.id
+            JOIN restaurants r ON o.restaurant_id = r.id
+            WHERE da.partner_id = $1 AND da.status = 'delivered' ${dateFilter}
+            ORDER BY da.delivered_at DESC
+            LIMIT 10
+        `, [uid]);
+
+        res.json({ 
+            success: true, 
+            total_earnings: stats.period_earnings || 0,
+            total_deliveries: stats.period_deliveries || 0,
+            earnings: stats.period_earnings || 0, // Fallback for various frontend versions
+            deliveries: stats.period_deliveries || 0,
+            rating: partner.rating || 5.0,
+            orders: ordersRes.rows
+        });
     } catch (e) { next(e); }
 };
 
@@ -394,6 +443,7 @@ const getDeliveryHistory = async (req, res, next) => {
 const getPartnerProfile = async (req, res, next) => {
     try {
         const uid = req.user.id;
+        console.log(`📡 [PROFILE] Fetching profile for user: ${uid}`);
         const resP = await db.query('SELECT * FROM delivery_partners WHERE user_id = $1', [uid]);
         if (resP.rows.length === 0) return res.status(404).json({ message: 'Not found' });
 
@@ -403,9 +453,10 @@ const getPartnerProfile = async (req, res, next) => {
             SELECT SUM(o.delivery_fee) as today_earnings 
             FROM delivery_assignments da
             JOIN orders o ON da.order_id = o.id
-            WHERE da.partner_id = $1 AND da.status = 'delivered' AND da.delivered_at >= CURRENT_DATE
+            WHERE da.partner_id = $1 AND da.status = 'delivered' AND (da.delivered_at >= CURRENT_DATE OR da.created_at >= CURRENT_DATE)
         `, [uid]);
 
+        console.log(`✅ [PROFILE] Profile fetched for ${uid}`);
         res.json({ success: true, data: { partner, today_earnings: todayRes.rows[0]?.today_earnings || 0 } });
     } catch (e) { next(e); }
 };

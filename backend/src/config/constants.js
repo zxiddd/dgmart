@@ -10,6 +10,7 @@ const ORDER_STATUS = {
     CANCELLED: 'cancelled',
     REFUNDED: 'refunded',
     SEARCHING_RIDER: 'searching_rider',
+    PAYMENT_PENDING: 'payment_pending'
 };
 
 // Payment statuses

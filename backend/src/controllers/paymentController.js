@@ -80,11 +80,44 @@ const handleWebhook = async (req, res, next) => {
                         [rzp_payment_id, PAYMENT_STATUS.COMPLETED, rzp_order_id]
                     );
 
-                    // 2. Update orders table
+                    // 2. Update orders table - transition from payment_pending to placed
                     await client.query(
                         `UPDATE orders SET payment_status = $1, status = $2, updated_at = NOW() WHERE id = $3`,
-                        [PAYMENT_STATUS.COMPLETED, ORDER_STATUS.CONFIRMED, order_id]
+                        [PAYMENT_STATUS.COMPLETED, ORDER_STATUS.PLACED, order_id]
                     );
+
+                    // 3. Notify restaurant/admin (Webhook flow)
+                    const orderRes = await client.query(`
+                        SELECT o.*, r.name as restaurant_name 
+                        FROM orders o 
+                        JOIN restaurants r ON o.restaurant_id = r.id 
+                        WHERE o.id = $1`, [order_id]
+                    );
+
+                    if (orderRes.rows.length > 0) {
+                        const order = orderRes.rows[0];
+                        const itemsRes = await client.query('SELECT item_name, quantity FROM order_items WHERE order_id = $1', [order_id]);
+
+                        const io = global.io;
+                        if (io) {
+                            const newOrderPayload = {
+                                id: order.id,
+                                order_number: order.order_number,
+                                status: order.status,
+                                total: order.total,
+                                subtotal: order.subtotal,
+                                delivery_fee: order.delivery_fee,
+                                payment_method: order.payment_method,
+                                delivery_address: order.delivery_address,
+                                special_instructions: order.special_instructions,
+                                created_at: order.placed_at || new Date().toISOString(),
+                                items: itemsRes.rows.map(i => ({ name: i.item_name, quantity: i.quantity })),
+                            };
+                            io.to(`restaurant:${order.restaurant_id}`).emit('new_order', newOrderPayload);
+                            io.to('admin:dashboard').emit('new_order', newOrderPayload);
+                            io.to(`user:${order.user_id}`).emit('order_update', { order_id: order.id, status: order.status });
+                        }
+                    }
 
                     console.log(`Webhook Success: Payment captured for order ${order_id}`);
                 }
@@ -152,7 +185,41 @@ const verifyPayment = async (req, res, next) => {
 
         await client.query(`UPDATE payments SET razorpay_payment_id = $1, razorpay_signature = $2, status = $3, completed_at = NOW() WHERE razorpay_order_id = $4`, [razorpay_payment_id, razorpay_signature, PAYMENT_STATUS.COMPLETED, razorpay_order_id]);
 
-        await client.query(`UPDATE orders SET payment_status = $1 WHERE id = $2`, [PAYMENT_STATUS.COMPLETED, order_id]);
+        await client.query(`UPDATE orders SET payment_status = $1, status = $2 WHERE id = $3`, [PAYMENT_STATUS.COMPLETED, ORDER_STATUS.PLACED, order_id]);
+
+        // Emit socket events so restaurant & admin see this NOW
+        const orderRes = await client.query(`
+            SELECT o.*, r.name as restaurant_name 
+            FROM orders o 
+            JOIN restaurants r ON o.restaurant_id = r.id 
+            WHERE o.id = $1`, [order_id]
+        );
+
+        if (orderRes.rows.length > 0) {
+            const order = orderRes.rows[0];
+            const itemsRes = await client.query('SELECT item_name, quantity FROM order_items WHERE order_id = $1', [order_id]);
+
+            const io = global.io;
+            if (io) {
+                const newOrderPayload = {
+                    id: order.id,
+                    order_number: order.order_number,
+                    status: order.status,
+                    total: order.total,
+                    subtotal: order.subtotal,
+                    delivery_fee: order.delivery_fee,
+                    payment_method: order.payment_method,
+                    delivery_address: order.delivery_address,
+                    special_instructions: order.special_instructions,
+                    created_at: order.placed_at || new Date().toISOString(),
+                    items: itemsRes.rows.map(i => ({ name: i.item_name, quantity: i.quantity })),
+                };
+                io.to(`restaurant:${order.restaurant_id}`).emit('new_order', newOrderPayload);
+                io.to('admin:dashboard').emit('new_order', newOrderPayload);
+                // Also notify user that payment is success
+                io.to(`user:${order.user_id}`).emit('order_update', { order_id: order.id, status: order.status });
+            }
+        }
         await client.query('COMMIT');
         res.json({ success: true, message: 'Verified' });
     } catch (e) { await client.query('ROLLBACK'); next(e); } finally { client.release(); }
