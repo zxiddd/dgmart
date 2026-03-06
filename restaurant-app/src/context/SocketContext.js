@@ -27,8 +27,9 @@ export const SocketProvider = ({ children }) => {
 
         api.get('/restaurants/me')
             .then(res => {
-                if (res?.data?.restaurant?.id) {
-                    setRestaurantId(res.data.restaurant.id);
+                const id = res?.data?.data?.restaurant?.id || res?.data?.restaurant?.id;
+                if (id) {
+                    setRestaurantId(id);
                 }
             })
             .catch(() => {

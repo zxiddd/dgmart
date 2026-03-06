@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, FlatList, ScrollView,
     StyleSheet, RefreshControl, Dimensions, StatusBar,
-    Animated, Platform, UIManager, Easing, Modal
+    Animated, Platform, UIManager, Easing, Modal, Alert
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
