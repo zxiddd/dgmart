@@ -13,12 +13,12 @@ let razorpay = null;
 try {
     if (config.razorpay.keyId && config.razorpay.keySecret) {
         razorpay = new Razorpay({
-            key_id: config.razorpay.keyId,
-            key_secret: config.razorpay.keySecret,
+            key_id: config.razorpay.keyId.trim(),
+            key_secret: config.razorpay.keySecret.trim(),
         });
-        console.log('✅ Razorpay initialized successfully');
+        console.log(`✅ Razorpay initialized successfully (Key ID: ${config.razorpay.keyId.substring(0, 8)}...)`);
     } else {
-        console.warn('⚠️ Razorpay keys missing. Payment features will be limited.');
+        console.warn('⚠️ Razorpay keys missing. KeyID:', !!config.razorpay.keyId, 'KeySecret:', !!config.razorpay.keySecret);
     }
 } catch (error) {
     console.warn('⚠️ Razorpay initialization failed:', error.message);
