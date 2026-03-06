@@ -67,8 +67,11 @@ app.use(cors({
         // Allow requests with no origin (mobile apps, Postman, etc.)
         if (!origin || config.cors.allowedOrigins.includes(origin)) {
             callback(null, true);
-        } else {
+        } else if (config.nodeEnv === 'development') {
             callback(null, true); // Allow all in development
+        } else {
+            console.warn(`🚨 CORS Blocked for origin: ${origin}`);
+            callback(null, false); // Explicitly deny
         }
     },
     credentials: true,
