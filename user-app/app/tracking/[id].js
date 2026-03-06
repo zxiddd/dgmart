@@ -276,7 +276,7 @@ export default function TrackingScreen() {
                         <View style={styles.partnerInfoV2}>
                             <Text style={styles.partnerNameV2}>{order.delivery_partner.name || 'Assigning Partner...'}</Text>
                             <Text style={styles.partnerSubV2}>
-                                {order.delivery_partner.phone ? order.delivery_partner.phone : 'Contact details available after pickup'}
+                                {order.delivery_partner.phone ? order.delivery_partner.phone : 'Assigning contact details...'}
                             </Text>
                         </View>
                         {order.delivery_partner.phone && (
