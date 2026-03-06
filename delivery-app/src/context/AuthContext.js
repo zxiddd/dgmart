@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '@/src/config/supabase';
 import { useRouter } from 'next/navigation';
 import api, { setApiToken } from '@/src/lib/api';
+import { registerPushNotifications } from '@/src/lib/pushNotifications';
 
 const AuthContext = createContext({});
 
@@ -43,6 +44,9 @@ export const AuthProvider = ({ children }) => {
         }
         if (initialSession?.user) {
           await fetchProfile();
+          // Register push notifications once authenticated
+          const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.degloormart.in/api';
+          registerPushNotifications(apiBase, initialSession.access_token).catch(() => {});
         }
       } catch (err) {
         console.error('Auth init error:', err);
@@ -63,6 +67,10 @@ export const AuthProvider = ({ children }) => {
       if (currentSession?.user) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || !profile) {
           await fetchProfile();
+        }
+        if (event === 'SIGNED_IN') {
+          const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://api.degloormart.in/api';
+          registerPushNotifications(apiBase, currentSession.access_token).catch(() => {});
         }
       } else {
         setProfile(null);

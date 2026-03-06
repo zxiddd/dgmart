@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import { playAlarmSound, playPingSound } from '@/src/lib/pushNotifications';
 
 export default function DashboardPage() {
     const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState(null);
     const [activeOrders, setActiveOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const stopAlarmRef = useRef(null); // holds the stopAlarm() function
 
     useEffect(() => {
         const fetchData = async () => {
@@ -56,7 +58,7 @@ export default function DashboardPage() {
         if (!socket) return;
         
         const onNewOrder = (newOrder) => {
-            toast.success('New Order Received! 🔔');
+            toast('🔔 New Order Received!', { icon: '🛎️', duration: 8000, style: { background: '#FF6B35', color: '#fff', fontWeight: 'bold', fontSize: '16px' } });
             setActiveOrders(prev => [newOrder, ...prev]);
             setStats(prev => prev ? {
                 ...prev,
@@ -66,11 +68,9 @@ export default function DashboardPage() {
                     pending_orders: (prev.today?.pending_orders || 0) + 1,
                 },
             } : prev);
-            // Optional: Add sound notification here
-            try {
-                const audio = new Audio('/notification.mp3');
-                audio.play().catch(e => console.log('Audio play failed:', e));
-            } catch (e) {}
+            // Play persistent alarm until order is accepted/rejected
+            if (stopAlarmRef.current) stopAlarmRef.current(); // stop any previous alarm
+            stopAlarmRef.current = playAlarmSound();
         };
 
         const onOrderStatusUpdated = (updatedOrder) => {
@@ -114,6 +114,11 @@ export default function DashboardPage() {
 
     const updateOrderStatus = async (orderId, status) => {
         try {
+            // Stop the alarm immediately when restaurant takes action
+            if (stopAlarmRef.current) {
+                stopAlarmRef.current();
+                stopAlarmRef.current = null;
+            }
             const res = await api.put(`/orders/${orderId}/status`, { status });
             if (res.data.success) {
                 const effectiveStatus = status === 'ready' ? 'searching_rider' : status;

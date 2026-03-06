@@ -304,6 +304,14 @@ const createOrder = async (req, res, next) => {
                 io.to('role:admin').emit('new_order', newOrderPayload);
                 io.to('admin:dashboard').emit('new_order', newOrderPayload);
             }
+
+            // Push notification to restaurant owner
+            await sendWebPush(
+                restaurant.owner_id,
+                `🔔 New Order #${order.order_number}!`,
+                `You have a new order totalling ₹${order.total}. Tap to view.`,
+                { order_id: order.id, url: '/dashboard' }
+            ).catch(() => {});
         }
 
         // Always notify the user that order room is ready
@@ -481,6 +489,24 @@ const updateOrderStatus = async (req, res, next) => {
         }
 
         res.json({ success: true, message: 'Updated' });
+
+        // Push notification to customer on key status changes
+        const statusMessages = {
+            confirmed: { title: '✅ Order Confirmed!', body: `${order.restaurant_name || 'Your restaurant'} has accepted your order. Preparing now!` },
+            rejected:  { title: '❌ Order Rejected', body: 'Unfortunately your order was rejected. Any payment will be refunded.' },
+            preparing: { title: '👨‍🍳 Preparing Your Order', body: 'The kitchen is cooking your order right now!' },
+            picked_up: { title: '🚵 Rider Picked Up!', body: 'Your order is on its way. Hang tight!' },
+            out_for_delivery: { title: '🏃 Almost There!', body: 'Your rider is very close. Get ready!' },
+            delivered: { title: '🎉 Order Delivered!', body: 'Enjoy your meal! Rate your experience in the app.' },
+        };
+        if (statusMessages[status]) {
+            sendWebPush(
+                order.user_id,
+                statusMessages[status].title,
+                statusMessages[status].body,
+                { order_id: id, url: `/tracking/${id}` }
+            ).catch(() => {});
+        }
 
         // Broadcast AFTER response is sent — uses pool not transaction client
         if (status === 'ready') {

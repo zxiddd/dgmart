@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import { supabase } from '@/src/config/supabase';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { playAlarmSound } from '@/src/lib/pushNotifications';
 
 const SocketContext = createContext(null);
 
@@ -12,6 +13,7 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const { user, session } = useAuth();
   const socketRef = useRef(null);
+  const stopAlarmRef = useRef(null); // holds alarm stop function
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [availableOrders, setAvailableOrders] = useState([]);
@@ -70,10 +72,17 @@ export const SocketProvider = ({ children }) => {
           if (exists) return prev;
           return [order, ...prev];
         });
+        // Play an urgent alarm for the rider
+        if (stopAlarmRef.current) stopAlarmRef.current();
+        stopAlarmRef.current = playAlarmSound();
+        // Auto-stop alarm after 30 seconds if rider doesn't interact
+        setTimeout(() => {
+          if (stopAlarmRef.current) { stopAlarmRef.current(); stopAlarmRef.current = null; }
+        }, 30000);
         toast(
           `New order from ${order.restaurant_name || 'a restaurant'}! ₹${order.delivery_fee || ''}`,
           {
-            icon: '🛵',
+            icon: '🚵',
             duration: 5000,
             style: { background: '#1a1a2e', color: '#fff', borderRadius: '12px' },
           }

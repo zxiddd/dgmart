@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clsx } from 'clsx';
+import { playAlarmSound, playPingSound } from '@/src/lib/pushNotifications';
 
 export default function DashboardPage() {
   const { profile, fetchProfile } = useAuth();
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [checkingVerification, setCheckingVerification] = useState(false);
   const pollRef = useRef(null);
+  const stopAlarmRef = useRef(null); // holds the stop function for the order alarm
 
   const loadStats = useCallback(async () => {
     try {
@@ -126,6 +128,11 @@ export default function DashboardPage() {
 
   const handleAcceptOrder = async (order) => {
     if (claimingId) return;
+    // Stop alarm immediately when rider acts
+    if (stopAlarmRef.current) {
+      stopAlarmRef.current();
+      stopAlarmRef.current = null;
+    }
     setClaimingId(order.order_id);
     try {
       const res = await api.post(`/delivery/orders/${order.order_id}/claim`);
