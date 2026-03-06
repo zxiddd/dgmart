@@ -63,6 +63,21 @@ CREATE TABLE IF NOT EXISTS public.payments (
 -- Enable RLS for payments
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
--- Idempotent Policy Creation
+-- 7. Create MISSING Push Subscriptions Table
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    subscription JSONB NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own subscriptions" ON public.push_subscriptions;
+CREATE POLICY "Users can manage their own subscriptions" ON public.push_subscriptions
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Idempotent Policy Creation for payments
 DROP POLICY IF EXISTS "Public payments" ON public.payments;
 CREATE POLICY "Public payments" ON public.payments FOR SELECT USING (true);

@@ -454,6 +454,8 @@ const sendBroadcastNotification = async (req, res, next) => {
         const notificationBody = body || message;
         const targetRole = target_role || role;
 
+        console.log(`📢 [TRACE] Broadcast attempt:`, { title: notificationTitle, target: targetRole });
+
         if (!notificationTitle || !notificationBody) {
             return res.status(400).json({ success: false, message: 'Title and body are required' });
         }
@@ -471,6 +473,7 @@ const sendBroadcastNotification = async (req, res, next) => {
         }
 
         const webSubscribers = await db.query(webQuery, webParams);
+        console.log(`📡 [TRACE] Web Subscriptions found: ${webSubscribers.rows.length}`);
 
         // 2. Fetch all FCM tokens from users table
         let fcmQuery = `SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL`;
@@ -481,21 +484,24 @@ const sendBroadcastNotification = async (req, res, next) => {
         }
         const fcmUsers = await db.query(fcmQuery, fcmParams);
         const fcmTokens = fcmUsers.rows.map(r => r.fcm_token);
+        console.log(`📱 [TRACE] FCM Tokens found: ${fcmTokens.length}`);
 
         // 3. Send Web Push
         const webPromises = webSubscribers.rows.map(row =>
             sendWebPush(row.user_id, notificationTitle, notificationBody, { url: url || '/', broadcast: true })
-              .catch(e => console.error(`Web Broadcast failed for ${row.user_id}:`, e.message))
+              .catch(e => console.error(`❌ Web Broadcast failed for ${row.user_id}:`, e.message))
         );
 
         // 4. Send FCM Push
         if (fcmTokens.length > 0) {
+            console.log(`🚀 [TRACE] Triggering FCM push to ${fcmTokens.length} devices...`);
             sendPushToMany({
                 tokens: fcmTokens,
                 title: notificationTitle,
                 body: notificationBody,
                 data: { url: url || '/' }
-            }).catch(e => console.error('FCM Broadcast failed:', e.message));
+            }).then(() => console.log('✅ [TRACE] FCM Broadcast completed.'))
+              .catch(e => console.error('❌ FCM Broadcast failed:', e.message));
         }
 
         await Promise.allSettled(webPromises);

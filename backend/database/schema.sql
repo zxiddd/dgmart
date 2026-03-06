@@ -261,6 +261,16 @@ CREATE TABLE public.notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 13.1 PUSH SUBSCRIPTIONS
+CREATE TABLE public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    subscription JSONB NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 14. PAYOUTS
 CREATE TABLE public.payouts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
