@@ -15,7 +15,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [availableOrders, setAvailableOrders] = useState([]);
-  const [activeOrder, setActiveOrder] = useState(null);
+  const [activeOrders, setActiveOrders] = useState([]);
   const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
@@ -87,12 +87,24 @@ export const SocketProvider = ({ children }) => {
 
       // Active order status update
       newSocket.on('order_status_update', (data) => {
-        setActiveOrder((prev) => (prev ? { ...prev, ...data } : prev));
+        setActiveOrders((prev) => {
+          const idx = prev.findIndex(o => (o.order_id || o.id) === (data.order_id || data.id));
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...data };
+          return updated;
+        });
       });
 
       // Assignment status update
       newSocket.on('assignment_status_update', (data) => {
-        setActiveOrder((prev) => (prev ? { ...prev, ...data } : prev));
+        setActiveOrders((prev) => {
+          const idx = prev.findIndex(o => (o.assignment_id || o.id) === (data.assignment_id || data.id));
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...data };
+          return updated;
+        });
       });
 
       socketRef.current = newSocket;
@@ -150,8 +162,8 @@ export const SocketProvider = ({ children }) => {
         isConnected,
         availableOrders,
         setAvailableOrders,
-        activeOrder,
-        setActiveOrder,
+        activeOrders,
+        setActiveOrders,
         isOnline,
         setIsOnline,
         goOnline,

@@ -14,8 +14,8 @@ import { clsx } from 'clsx';
 export default function DashboardPage() {
   const { profile, fetchProfile } = useAuth();
   const {
-    availableOrders, activeOrder, isOnline, setIsOnline,
-    goOnline, goOffline, claimOrder, setActiveOrder, fetchAvailableOrders,
+    availableOrders, activeOrders, isOnline, setIsOnline,
+    goOnline, goOffline, claimOrder, setActiveOrders, fetchAvailableOrders,
   } = useSocket();
   const router = useRouter();
 
@@ -50,10 +50,16 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadStats();
-    loadOnlineStatus().then(() => {
-      if (isOnline) fetchAvailableOrders();
-    });
+    loadOnlineStatus();
   }, []);
+
+  useEffect(() => {
+    if (isOnline) {
+      fetchAvailableOrders();
+      // Also ensure socket is joined on refresh if online
+      goOnline();
+    }
+  }, [isOnline]);
 
   // Poll every 30s while unverified to auto-detect admin verification
   useEffect(() => {
@@ -125,11 +131,14 @@ export default function DashboardPage() {
       const res = await api.post(`/delivery/orders/${order.order_id}/claim`);
       const assignmentId = res.data?.assignment_id || res.data?.data?.assignment_id || res.data?.id;
       
-      setActiveOrder({
-        ...order,
-        assignment_id: assignmentId,
-        status: 'accepted_by_driver',
-      });
+      setActiveOrders((prev) => [
+        ...prev,
+        {
+          ...order,
+          assignment_id: assignmentId,
+          status: 'accepted_by_driver',
+        }
+      ]);
       toast.success('Order accepted! 🎉');
       router.push('/dashboard/active');
     } catch (err) {
@@ -202,9 +211,15 @@ export default function DashboardPage() {
         <StatCard label="Rating" value={parseFloat(todayStats.rating || 5).toFixed(1)} icon={<Star className="w-4 h-4" />} color="yellow" />
       </div>
 
-      {activeOrder && (
-        <div className="mx-5 mb-5">
-          <ActiveOrderBanner order={activeOrder} onContinue={() => router.push('/dashboard/active')} />
+      {activeOrders && activeOrders.length > 0 && (
+        <div className="mx-5 mb-5 space-y-3">
+          {activeOrders.map((order, idx) => (
+            <ActiveOrderBanner 
+              key={order.order_id || idx} 
+              order={order} 
+              onContinue={() => router.push(`/dashboard/active?id=${order.order_id || order.id}`)} 
+            />
+          ))}
         </div>
       )}
 

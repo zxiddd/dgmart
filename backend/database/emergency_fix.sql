@@ -19,6 +19,9 @@ CHECK (status IN (
     'cancelled', 'refunded', 'payment_pending'
 ));
 
+-- 4. Add customer_phone to orders if missing
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+
 -- 3. Expand delivery_assignments.status CHECK constraint
 ALTER TABLE public.delivery_assignments DROP CONSTRAINT IF EXISTS delivery_assignments_status_check;
 ALTER TABLE public.delivery_assignments 

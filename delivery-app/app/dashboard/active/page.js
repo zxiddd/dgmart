@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/src/context/AuthContext';
 import { useSocket } from '@/src/context/SocketContext';
 import api from '@/src/lib/api';
@@ -20,7 +20,9 @@ const STEPS = [
 
 export default function ActiveOrderPage() {
   const { profile } = useAuth();
-  const { activeOrder, setActiveOrder } = useSocket();
+  const { activeOrders, setActiveOrders } = useSocket();
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get('id');
   const router = useRouter();
 
   const [order, setOrder] = useState(null);
@@ -32,25 +34,41 @@ export default function ActiveOrderPage() {
   const loadActiveOrder = useCallback(async () => {
     try {
       const res = await api.get('/delivery/orders');
-      const active = (res.data?.active || []).find(
-        (a) => ['accepted_by_driver', 'picked_up', 'out_for_delivery', 'assigned', 'accepted'].includes(a.status || a.order_status)
-      );
-      if (active) setOrder(active);
-      else if (activeOrder) setOrder(activeOrder);
-    } catch {
-      if (activeOrder) setOrder(activeOrder);
+      const activeList = res.data?.active || [];
+      
+      let active;
+      if (orderId) {
+        active = activeList.find(o => (o.order_id || o.id) === orderId);
+      } else {
+        active = activeList[0];
+      }
+      
+      if (active) {
+        setOrder(active);
+      } else if (activeOrders.length > 0) {
+        active = orderId ? activeOrders.find(o => (o.order_id || o.id) === orderId) : activeOrders[0];
+        if (active) setOrder(active);
+      }
+    } catch (err) {
+      if (activeOrders.length > 0) {
+        const active = orderId ? activeOrders.find(o => (o.order_id || o.id) === orderId) : activeOrders[0];
+        if (active) setOrder(active);
+      }
     }
-  }, [activeOrder]);
+  }, [activeOrders, orderId]);
 
   useEffect(() => {
     loadActiveOrder();
-  }, []);
+  }, [loadActiveOrder]);
 
   useEffect(() => {
-    if (activeOrder && (!order || activeOrder.order_id === order.order_id)) {
-      setOrder((prev) => prev ? { ...prev, ...activeOrder } : activeOrder);
+    if (activeOrders.length > 0) {
+      const active = orderId ? activeOrders.find(o => (o.order_id || o.id) === orderId) : activeOrders[0];
+      if (active && (!order || (active.order_id || active.id) === (order.order_id || order.id))) {
+        setOrder((prev) => prev ? { ...prev, ...active } : active);
+      }
     }
-  }, [activeOrder]);
+  }, [activeOrders, orderId]);
 
   const currentStatus = order?.order_status || order?.status || 'accepted_by_driver';
   const currentStepIdx = STEPS.findIndex((s) => s.key === currentStatus);
@@ -66,7 +84,9 @@ export default function ActiveOrderPage() {
       if (!assignmentId) throw new Error('Assignment ID not found. Please refresh.');
       await api.put(`/delivery/orders/${assignmentId}/status`, { status: newStatus });
       setOrder((prev) => ({ ...prev, order_status: newStatus, status: newStatus }));
-      setActiveOrder((prev) => prev ? { ...prev, order_status: newStatus, status: newStatus } : prev);
+      setActiveOrders((prev) => prev.map(o => 
+        (o.order_id || o.id) === (order.order_id || order.id) ? { ...o, order_status: newStatus, status: newStatus } : o
+      ));
       toast.success(newStatus === 'picked_up' ? 'Marked as picked up! 🛵' : 'Status updated!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update status');
@@ -87,7 +107,7 @@ export default function ActiveOrderPage() {
       setShowOTP(false);
       setEarnings(res.data?.earnings || order?.delivery_fee || order?.earning || 40);
       setShowSuccess(true);
-      setActiveOrder(null);
+      setActiveOrders((prev) => prev.filter(o => (o.order_id || o.id) !== (order.order_id || order.id)));
       setOrder(null);
     } catch (err) {
       const msg = err.response?.data?.message || 'Delivery failed';
@@ -348,11 +368,8 @@ function OTPModal({ onConfirm, onClose, loading }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end justify-center">
-      <div className="w-full max-w-md bg-white rounded-t-3xl px-6 pt-6 pb-8 animate-slide-up">
-        {/* Handle */}
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="w-full max-w-sm bg-white rounded-3xl p-6 animate-scale-up shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-extrabold text-gray-900">Delivery OTP</h2>

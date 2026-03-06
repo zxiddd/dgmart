@@ -203,9 +203,18 @@ const getAssignedOrders = async (req, res, next) => {
         // My code passed 'partner_id' (users.id) in assignments.
         // So here WHERE da.partner_id = $1 (uid) is correct.
 
-        const assignments = assignmentsRes.rows;
+        const assignments = assignmentsRes.rows.map(a => ({
+            ...a,
+            customer_name: a.order_details.customer_name,
+            customer_phone: a.order_details.customer_phone,
+            delivery_address: a.order_details.delivery_address,
+            order_number: a.order_details.order_number,
+            delivery_fee: a.order_details.delivery_fee,
+            order_status: a.order_details.status,
+            status: a.status // assignment status
+        }));
 
-        const active = assignments.filter(a => ['assigned', 'accepted', 'picked_up', 'out_for_delivery'].includes(a.status));
+        const active = assignments.filter(a => ['assigned', 'accepted', 'picked_up', 'out_for_delivery', 'accepted_by_driver'].includes(a.status));
         const completed = assignments.filter(a => a.status === 'delivered');
 
         res.json({ success: true, active, completed });

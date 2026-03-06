@@ -236,6 +236,9 @@ const createOrder = async (req, res, next) => {
         const orderRes = await client.query(orderQuery, values);
         const order = orderRes.rows[0];
 
+        // Also update user's last phone for future orders
+        await client.query('UPDATE users SET phone = $1 WHERE id = $2', [customerPhone, userId]);
+
         if (payment_method === PAYMENT_METHOD.RAZORPAY || payment_method === PAYMENT_METHOD.ONLINE) {
             if (!razorpay) throw new Error('Online payments are currently unavailable. Please use COD.');
 
@@ -388,8 +391,8 @@ const getOrder = async (req, res, next) => {
 
         const delivery = delRes.rows[0] || null;
 
-        // Hide rider details from user until picked up
-        if (req.user.role === 'customer' && delivery && !['picked_up', 'on_the_way', 'delivered'].includes(order.status)) {
+        // Show rider details to user as soon as accepted
+        if (req.user.role === 'customer' && delivery && !['accepted_by_driver', 'picked_up', 'out_for_delivery', 'delivered'].includes(order.status)) {
             delivery.partner_name = 'Assigning...';
             delivery.partner_phone = null;
         }
