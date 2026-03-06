@@ -66,6 +66,7 @@ const toggleOnlineStatus = async (req, res, next) => {
  */
 const getAvailableOrders = async (req, res, next) => {
     try {
+        console.log(`📡 [AVAILABLE_ORDERS] Fetching for user: ${req.user.id}`);
         const query = `
             SELECT o.*, o.id as order_id, r.name as restaurant_name, r.lat as restaurant_lat, r.lng as restaurant_lng, r.address as restaurant_address
             FROM orders o
@@ -74,8 +75,10 @@ const getAvailableOrders = async (req, res, next) => {
             ORDER BY o.created_at DESC
         `;
         const { rows } = await db.query(query);
+        console.log(`✅ [AVAILABLE_ORDERS] Found ${rows.length} orders`);
         res.json({ success: true, data: { orders: rows } });
     } catch (e) {
+        console.error('❌ [AVAILABLE_ORDERS] Error:', e);
         next(e);
     }
 };
@@ -273,10 +276,11 @@ const updateDeliveryStatus = async (req, res, next) => {
         }
 
         // Validate status
-        const validStatuses = ['picked_up', 'out_for_delivery', 'delivered'];
+        const validStatuses = ['picked_up', 'out_for_delivery', 'delivered', 'accepted', 'accepted_by_driver'];
         if (!status || !validStatuses.includes(status)) {
+            console.error(`❌ [INVALID_STATUS] Received: "${status}" for assignment ${assignmentId}`);
             await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+            return res.status(400).json({ success: false, message: `Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}` });
         }
 
         // Look up assignment by id first, then try order_id as fallback
