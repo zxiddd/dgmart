@@ -602,14 +602,19 @@ const broadcastOrderToRiders = async (orderId, order) => {
 
         // 2. Fetch all online and verified partners
         const resPartners = await db.query(`
-            SELECT p.user_id, u.name as partner_name
+            SELECT p.user_id, u.name as partner_name, p.is_online, p.is_verified
             FROM delivery_partners p
             JOIN users u ON p.user_id = u.id
             WHERE p.is_online = true AND p.is_verified = true
         `);
 
         if (resPartners.rows.length === 0) {
-            console.log(`⚠️ No online partners found for broadcast of order ${order.order_number}`);
+            console.log(`⚠️ No online and verified partners found for broadcast of order ${order.order_number}`);
+            // Check if there are ANY partners to provide better diagnostics
+            const anyPartners = await db.query(`SELECT count(*) as count FROM delivery_partners`);
+            const onlinePartners = await db.query(`SELECT count(*) as count FROM delivery_partners WHERE is_online = true`);
+            const verifiedPartners = await db.query(`SELECT count(*) as count FROM delivery_partners WHERE is_verified = true`);
+            console.log(`📊 Stats: Total partners: ${anyPartners.rows[0].count}, Online: ${onlinePartners.rows[0].count}, Verified: ${verifiedPartners.rows[0].count}`);
             return;
         }
 

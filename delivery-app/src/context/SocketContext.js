@@ -10,7 +10,7 @@ const SocketContext = createContext(null);
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const socketRef = useRef(null);
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -19,7 +19,7 @@ export const SocketProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !session) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -30,10 +30,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     const initSocket = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const token = session.access_token;
       if (!token) return;
 
       let backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.degloormart.in/api';

@@ -10,6 +10,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -26,30 +27,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile();
-      }
-      setLoading(false);
-    };
-    checkSession();
+  const initialized = useRef(false);
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile();
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const initAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        if (initialSession?.user) {
+          await fetchProfile();
+        }
+      } catch (err) {
+        console.error('Auth init error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      // Avoid redundant work if session hasn't actually changed meaningfully for profile
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      if (currentSession?.user) {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || !profile) {
+          await fetchProfile();
+        }
       } else {
         setProfile(null);
+        if (event === 'SIGNED_OUT') router.push('/');
       }
       setLoading(false);
-      if (!session) router.push('/');
     });
 
     return () => subscription.unsubscribe();
@@ -84,7 +97,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, login, logout, loading, fetchProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, login, logout, loading, fetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

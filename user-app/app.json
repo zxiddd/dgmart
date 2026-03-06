@@ -30,11 +30,15 @@
       "expo-dev-client",
       "expo-secure-store",
       "expo-web-browser",
+      "./src/plugins/withRazorpay",
       [
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "extraMavenRepos": [
+              "https://maven.razorpay.com/repository/maven-releases/"
+            ]
           }
         }
       ]
