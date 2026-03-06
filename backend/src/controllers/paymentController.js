@@ -11,7 +11,7 @@ try {
             key_id: config.razorpay.keyId.trim(),
             key_secret: config.razorpay.keySecret.trim(),
         });
-        console.log(`✅ Razorpay initialized in PaymentController (Key ID: ${config.razorpay.keyId.substring(0, 8)}...)`);
+        console.log(`✅ Razorpay initialized in PaymentController (Key ID: ${config.razorpay.keyId.substring(0, 14)}...)`);
     } else {
         console.warn('⚠️ Razorpay keys missing in PaymentController. KeyID:', !!config.razorpay.keyId, 'KeySecret:', !!config.razorpay.keySecret);
     }
