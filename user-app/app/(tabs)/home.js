@@ -97,6 +97,7 @@ export default function HomeScreen() {
     const user = useAuthStore(s => s.user);
     const currentAddress = useAuthStore(s => s.currentAddress);
     const addresses = useAuthStore(s => s.addresses);
+    const addressesFetched = useAuthStore(s => s.addressesFetched);
     const justRegistered = useAuthStore(s => s.justRegistered);
     const cartCount = useCartStore(s => s.getTotalItems());
 
@@ -116,7 +117,7 @@ export default function HomeScreen() {
     useEffect(() => {
         // Only redirect if profile is loaded, addresses are fetched and empty, 
         // AND we haven't already redirected in this component mount.
-        if (profile && !hasRedirected.current && addresses.length === 0) {
+        if (profile && addressesFetched && !hasRedirected.current && addresses.length === 0) {
             hasRedirected.current = true;
             useAuthStore.setState({ justRegistered: false });
 
@@ -125,7 +126,7 @@ export default function HomeScreen() {
                 router.push('/addresses');
             }, 800);
         }
-    }, [profile, addresses.length, router]);
+    }, [profile, addressesFetched, addresses.length, router]);
 
     const [restaurants, setRestaurants] = useState([]);
     const [loading, setLoading] = useState(true);

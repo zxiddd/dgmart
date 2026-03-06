@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { supabase } from '../config/supabase';
 import { userAPI, authAPI, setApiToken } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -78,20 +78,24 @@ export const useAuthStore = create((set, get) => ({
     // Address Management
     currentAddress: null,
     addresses: [],
+    addressesFetched: false,
 
     fetchAddresses: async () => {
         try {
             const res = await userAPI.getAddresses();
             if (res.success && res.data.addresses) {
-                set({ addresses: res.data.addresses });
+                set({ addresses: res.data.addresses, addressesFetched: true });
                 // Set default as current if none selected
                 if (!get().currentAddress && res.data.addresses.length > 0) {
                     const defaultAddr = res.data.addresses.find(a => a.is_default) || res.data.addresses[0];
                     set({ currentAddress: defaultAddr });
                 }
+            } else {
+                set({ addressesFetched: true });
             }
         } catch (error) {
             console.log('Fetch addresses error', error);
+            set({ addressesFetched: true });
         }
     },
 
