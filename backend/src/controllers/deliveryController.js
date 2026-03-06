@@ -90,6 +90,12 @@ const claimOrder = async (req, res, next) => {
         const { orderId } = req.params;
         const userId = req.user.id; // Partner's user ID
 
+        // UUID validation guard
+        if (!orderId || orderId === 'undefined' || !/^[0-9a-f-]{36}$/i.test(orderId)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Invalid order ID' });
+        }
+
         // 1. Check if order is still available (Atomic check)
         const orderRes = await client.query('SELECT status, order_number, restaurant_id FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
 
@@ -414,6 +420,12 @@ const getEarnings = async (req, res, next) => {
 const getDeliveryHistory = async (req, res, next) => {
     try {
         const uid = req.user.id;
+        
+        // UUID validation guard
+        if (!uid || uid === 'undefined' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+            return res.status(400).json({ success: false, message: 'Invalid partner ID' });
+        }
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const offset = (page - 1) * limit;
