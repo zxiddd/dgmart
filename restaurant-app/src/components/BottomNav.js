@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Menu, Settings, ShieldShield } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Menu, Settings, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function BottomNav() {
@@ -13,7 +13,7 @@ export default function BottomNav() {
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
         { icon: ShoppingBag, label: 'Orders', href: '/dashboard/orders' },
-        ...(isAdmin ? [{ icon: ShieldShield, label: 'Admin', href: '/admin' }] : []),
+        ...(isAdmin ? [{ icon: Shield, label: 'Admin', href: '/admin' }] : []),
         { icon: Menu, label: 'Menu', href: '/dashboard/menu' },
         { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
     ];

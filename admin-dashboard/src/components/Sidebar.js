@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Store, ShoppingBag, Truck, Tag, Settings, LogOut, MessageSquare, MapPin, X } from 'lucide-react';
+import { LayoutDashboard, Users, Store, ShoppingBag, Truck, Tag, Settings, LogOut, MessageSquare, MapPin, X, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const menuItems = [
@@ -12,6 +12,7 @@ const menuItems = [
     { icon: Truck, label: 'Delivery', href: '/dashboard/delivery' },
     { icon: MapPin, label: 'Locations', href: '/dashboard/locations' },
     { icon: Tag, label: 'Promos', href: '/dashboard/promos' },
+    { icon: Bell, label: 'Notifications', href: '/dashboard/notifications' },
     { icon: MessageSquare, label: 'Support', href: '/dashboard/support' },
     { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
 ];

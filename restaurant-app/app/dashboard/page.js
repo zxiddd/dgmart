@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
-import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle, ShieldShield, ChevronRight } from 'lucide-react';
+import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle, Shield, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -170,8 +170,8 @@ export default function DashboardPage() {
                     className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-200 flex items-center justify-between cursor-pointer border border-indigo-400 group hover:bg-indigo-700 transition-all"
                 >
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/20 p-2 rounded-xl">
-                            <ShieldShield className="text-white" size={24} />
+                        <div className="p-3 bg-indigo-100 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                            <Shield className="w-6 h-6 text-indigo-600" />
                         </div>
                         <div>
                             <h3 className="text-white font-bold">Global Admin Portal</h3>

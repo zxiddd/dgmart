@@ -12,6 +12,8 @@ CREATE TABLE public.users (
     role TEXT DEFAULT 'customer' CHECK (role IN ('customer', 'restaurant_owner', 'delivery_partner', 'admin', 'super_admin')),
     wallet_balance DECIMAL(10, 2) DEFAULT 0.00,
     referral_code TEXT UNIQUE,
+    fcm_token TEXT,
+    firebase_uid TEXT UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -111,8 +113,20 @@ CREATE TABLE public.promo_codes (
     usage_limit INTEGER,
     used_count INTEGER DEFAULT 0,
     first_order_only BOOLEAN DEFAULT FALSE,
+    target_user_id UUID REFERENCES public.users(id),
+    max_uses_per_user INTEGER DEFAULT 1,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6.1 PROMO CODE USAGES
+CREATE TABLE public.promo_code_usages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    promo_id UUID REFERENCES public.promo_codes(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE,
+    used_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(promo_id, user_id, order_id)
 );
 
 -- 7. ORDERS

@@ -7,10 +7,12 @@ import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../src/store/authStore';
 import { COLORS } from '../src/config/theme';
 
+import { registerForPushNotificationsAsync, initNotifications } from '../src/services/notificationService';
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-    const { isAuthenticated, isLoading, init } = useAuthStore();
+    const { isAuthenticated, isLoading, init, user } = useAuthStore();
     const router = useRouter();
     const segments = useSegments();
 
@@ -31,6 +33,18 @@ export default function RootLayout() {
             SplashScreen.hideAsync();
         }
     }, [fontsLoaded]);
+
+    useEffect(() => {
+        // Initialize notification listeners
+        const cleanup = initNotifications(router);
+        return () => cleanup && cleanup();
+    }, [fontsLoaded]);
+
+    useEffect(() => {
+        if (isAuthenticated && user?.id) {
+            registerForPushNotificationsAsync(user.id);
+        }
+    }, [isAuthenticated, user?.id]);
 
     useEffect(() => {
         if (isLoading || !fontsLoaded) return;

@@ -445,34 +445,67 @@ const deleteZone = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 
+const { sendPushToMany } = require('../services/firebaseService');
+
 const sendBroadcastNotification = async (req, res, next) => {
     try {
-        const { title, body, target_role, url } = req.body;
-        if (!title || !body) return res.status(400).json({ success: false, message: 'Title and body are required' });
+        const { title, body, message, target_role, role, url } = req.body;
+        const notificationTitle = title;
+        const notificationBody = body || message;
+        const targetRole = target_role || role;
+
+        if (!notificationTitle || !notificationBody) {
+            return res.status(400).json({ success: false, message: 'Title and body are required' });
+        }
         
-        // Fetch all push subscriptions, optionally filtered by role
-        let query = `
+        // 1. Fetch all web push subscriptions
+        let webQuery = `
             SELECT ps.user_id, ps.subscription
             FROM push_subscriptions ps
             JOIN users u ON u.id = ps.user_id
         `;
-        const params = [];
-        if (target_role && target_role !== 'all') {
-            query += ' WHERE u.role = $1';
-            params.push(target_role);
+        const webParams = [];
+        if (targetRole && targetRole !== 'all') {
+            webQuery += ' WHERE u.role = $1';
+            webParams.push(targetRole);
         }
 
-        const { rows } = await db.query(query, params);
-        if (rows.length === 0) return res.json({ success: true, message: 'No subscribers found for the target.', sent: 0 });
+        const webSubscribers = await db.query(webQuery, webParams);
 
-        // Send to all concurrently
-        const promises = rows.map(row =>
-            sendWebPush(row.user_id, title, body, { url: url || '/', broadcast: true })
-              .catch(e => console.error(`Broadcast failed for ${row.user_id}:`, e.message))
+        // 2. Fetch all FCM tokens from users table
+        let fcmQuery = `SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL`;
+        const fcmParams = [];
+        if (targetRole && targetRole !== 'all') {
+            fcmQuery += ' AND role = $1';
+            fcmParams.push(targetRole);
+        }
+        const fcmUsers = await db.query(fcmQuery, fcmParams);
+        const fcmTokens = fcmUsers.rows.map(r => r.fcm_token);
+
+        // 3. Send Web Push
+        const webPromises = webSubscribers.rows.map(row =>
+            sendWebPush(row.user_id, notificationTitle, notificationBody, { url: url || '/', broadcast: true })
+              .catch(e => console.error(`Web Broadcast failed for ${row.user_id}:`, e.message))
         );
-        await Promise.allSettled(promises);
 
-        res.json({ success: true, message: `Notification sent to ${rows.length} subscriber(s).`, sent: rows.length });
+        // 4. Send FCM Push
+        if (fcmTokens.length > 0) {
+            sendPushToMany({
+                tokens: fcmTokens,
+                title: notificationTitle,
+                body: notificationBody,
+                data: { url: url || '/' }
+            }).catch(e => console.error('FCM Broadcast failed:', e.message));
+        }
+
+        await Promise.allSettled(webPromises);
+
+        res.json({ 
+            success: true, 
+            message: `Notification sent to ${webSubscribers.rows.length} web devices and ${fcmTokens.length} native devices.`,
+            web_sent: webSubscribers.rows.length,
+            fcm_sent: fcmTokens.length
+        });
     } catch (e) { next(e); }
 };
 const getReports = async (req, res, next) => res.json({ success: true, data: {} });
