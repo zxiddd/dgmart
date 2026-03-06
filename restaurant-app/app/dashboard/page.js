@@ -6,7 +6,7 @@ import { Power, ShoppingBag, DollarSign, Star, Clock, CheckCircle } from 'lucide
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { playAlarmSound, playPingSound } from '@/src/lib/pushNotifications';
+import { playAlarmSound, playPingSound } from '@/lib/pushNotifications';
 
 export default function DashboardPage() {
     const { user } = useAuth();

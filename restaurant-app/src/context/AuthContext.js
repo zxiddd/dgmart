@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/config/supabase';
 import { useRouter } from 'next/navigation';
-import { registerPushNotifications } from '@/src/lib/pushNotifications';
+import { registerPushNotifications } from '@/lib/pushNotifications';
 
 const AuthContext = createContext({});
 
