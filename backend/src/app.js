@@ -16,7 +16,6 @@ const { initializeSocket } = require('./socket/socketHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
-const firebaseAuthRoutes = require('./routes/firebase-auth.routes');
 const userRoutes = require('./routes/user.routes');
 const restaurantRoutes = require('./routes/restaurant.routes');
 const menuRoutes = require('./routes/menu.routes');
@@ -29,6 +28,7 @@ const uploadRoutes = require('./routes/upload.routes');
 const bannerRoutes = require('./routes/banner.routes');
 const configRoutes = require('./routes/config.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const reportRoutes = require('./routes/report.routes');
 
 // Initialize Express app
 const app = express();
@@ -141,7 +141,6 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', firebaseAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);
@@ -154,6 +153,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/app', configRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin/reports', reportRoutes);
 
 // ============ ERROR HANDLING ============
 

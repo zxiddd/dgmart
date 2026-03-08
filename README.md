@@ -12,8 +12,9 @@
 | **Delivery App** | Next.js (PWA) | `3002` | App for delivery partners to accept and fulfill orders. |
 | **Admin Dashboard** | Next.js | `3000` | Control center for platform administrators. |
 
-**Database**: Firebase (Auth + Firestore)
-**Real-time**: Socket.io + Firebase Cloud Messaging
+**Database**: PostgreSQL (via Supabase)
+**Authentication**: Supabase Auth (Email/Phone/OTP)
+**Real-time notifications**: Socket.io + Web Push + Expo Push
 
 ---
 
@@ -63,23 +64,22 @@ npx expo start --go
 ## 🔧 Configuration & Troubleshooting
 
 ### Database Connection
-The system is configured to use **Firebase Firestore**.
-- **Issue**: If you see empty lists (no restaurants/orders), it likely means Firestore is not enabled in your Firebase Console.
-- **Fix**: Go to [Firebase Console](https://console.firebase.google.com/) -> Select Project `degloormart` -> Build -> Firestore Database -> **Create Database**.
-- **Fallback**: All apps have a **Robust Demo Mode**. If the database is unreachable, they will automatically show demo data (e.g., "Biryani Palace" restaurant) so you can test the UI and flow immediately.
+The system is configured to use **Supabase (PostgreSQL)**.
+- **Backend Setup**: Ensure your `.env` file contains `DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY`.
+- **Database Schema**: Run `backend/database/schema.sql` in your Supabase SQL Editor to set up the necessary tables and triggers.
 
 ### API Connection
-- **Web Apps**: Connect to `http://localhost:5000`.
-- **User App**: Connects to `http://172.20.10.2:5000` (Your Wi-Fi IP).
-  - *If your IP changes*: Update `API_BASE_URL` in `user-app/src/services/api.js`.
+- **Web Apps**: Connect to `https://api.degloormart.in/api` (Production) or `http://localhost:5000/api` (Local).
+- **User App**: Configure `EXPO_PUBLIC_API_URL` in your `.env` or set it in the services/api.js.
 
 ---
 
 ## 📱 Features Implemented
 - **Authentication**: Role-based login (Customer, Restaurant, Delivery, Admin).
+- **Forgot Password**: Secure password reset via Phone OTP using APIHome.
 - **Real-time Updates**: Socket.io integration for instant order alerts.
 - **Dashboards**: Full analytics and management interfaces for all stakeholders.
-- **Resilience**: "Graceful degradation" ensures apps don't crash even if the backend is down.
+- **Resilience**: Robust error handling and transaction monitoring.
 
 ---
 

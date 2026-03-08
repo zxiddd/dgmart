@@ -12,8 +12,6 @@ CREATE TABLE public.users (
     role TEXT DEFAULT 'customer' CHECK (role IN ('customer', 'restaurant_owner', 'delivery_partner', 'admin', 'super_admin')),
     wallet_balance DECIMAL(10, 2) DEFAULT 0.00,
     referral_code TEXT UNIQUE,
-    fcm_token TEXT,
-    firebase_uid TEXT UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

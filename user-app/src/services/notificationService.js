@@ -38,7 +38,10 @@ export const registerForPushNotificationsAsync = async (userId) => {
         
         // Save to backend
         if (userId && token) {
-            await api.post('/auth/fcm-token', { fcm_token: token });
+            await api.post('/users/push-subscribe', { 
+                subscription: token, 
+                device_type: Platform.OS 
+            });
             console.log('✅ Push token synced with backend');
         }
     } catch (e) {
@@ -79,7 +82,7 @@ export const initNotifications = (navigation) => {
   });
 
   return () => {
-    Notifications.removeNotificationSubscription(notificationListener);
-    Notifications.removeNotificationSubscription(responseListener);
+    notificationListener.remove();
+    responseListener.remove();
   };
 };

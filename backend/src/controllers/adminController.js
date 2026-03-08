@@ -445,7 +445,7 @@ const deleteZone = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 
-const { sendPushToMany } = require('../services/firebaseService');
+
 
 const sendBroadcastNotification = async (req, res, next) => {
     try {
@@ -475,16 +475,8 @@ const sendBroadcastNotification = async (req, res, next) => {
         const webSubscribers = await db.query(webQuery, webParams);
         console.log(`📡 [TRACE] Web Subscriptions found: ${webSubscribers.rows.length}`);
 
-        // 2. Fetch all FCM tokens from users table
-        let fcmQuery = `SELECT fcm_token FROM users WHERE fcm_token IS NOT NULL`;
-        const fcmParams = [];
-        if (targetRole && targetRole !== 'all') {
-            fcmQuery += ' AND role = $1';
-            fcmParams.push(targetRole);
-        }
-        const fcmUsers = await db.query(fcmQuery, fcmParams);
-        const fcmTokens = fcmUsers.rows.map(r => r.fcm_token);
-        console.log(`📱 [TRACE] FCM Tokens found: ${fcmTokens.length}`);
+        // 2. Fetch all FCM tokens from users table (FCM Removed)
+        const fcmTokens = [];
 
         // 3. Send Web Push
         const webPromises = webSubscribers.rows.map(row =>
@@ -492,17 +484,7 @@ const sendBroadcastNotification = async (req, res, next) => {
               .catch(e => console.error(`❌ Web Broadcast failed for ${row.user_id}:`, e.message))
         );
 
-        // 4. Send FCM Push
-        if (fcmTokens.length > 0) {
-            console.log(`🚀 [TRACE] Triggering FCM push to ${fcmTokens.length} devices...`);
-            sendPushToMany({
-                tokens: fcmTokens,
-                title: notificationTitle,
-                body: notificationBody,
-                data: { url: url || '/' }
-            }).then(() => console.log('✅ [TRACE] FCM Broadcast completed.'))
-              .catch(e => console.error('❌ FCM Broadcast failed:', e.message));
-        }
+        // 4. Send FCM Push (Removed)
 
         await Promise.allSettled(webPromises);
 

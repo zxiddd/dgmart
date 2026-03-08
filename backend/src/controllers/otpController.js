@@ -1,15 +1,6 @@
-const admin = require('firebase-admin');
 const path = require('path');
 const crypto = require('crypto');
 const db = require('../config/db');
-
-// Initialize Firebase Admin (singleton)
-if (!admin.apps.length) {
-    const serviceAccount = require(path.join(__dirname, '../../firebase-service-account.json'));
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
-}
 
 // In-memory OTP store (for production, use Redis or DB)
 const otpStore = new Map(); // { "+91XXXXXXXXXX": { otp, expiresAt } }

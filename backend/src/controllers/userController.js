@@ -235,21 +235,31 @@ const subscribeToPush = async (req, res, next) => {
         const { subscription, device_type } = req.body;
         const userId = req.user.id;
 
-        // Use UPSERT to handle subscription update if exists
+        if (!subscription) {
+            return res.status(400).json({ success: false, message: 'Subscription required' });
+        }
+
+        // 1. Identify unique endpoint/token
+        // Web Push has subscription.endpoint. Expo/Mobile has just the token string.
+        const endpoint = typeof subscription === 'string' ? subscription : subscription.endpoint;
+        
+        if (!endpoint) {
+            return res.status(400).json({ success: false, message: 'Invalid subscription' });
+        }
+
+        // 2. Wrap subscription for storage if it's a string
+        const subscriptionJson = typeof subscription === 'string' ? { token: subscription } : subscription;
+
+        // 3. UPSERT logic: Remove old entry with same endpoint if exists, then insert new one
+        await db.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [endpoint]);
+        
         const query = `
-            INSERT INTO push_subscriptions (user_id, subscription, device_type)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (id) DO UPDATE SET 
-                subscription = EXCLUDED.subscription,
-                device_type = EXCLUDED.device_type,
-                updated_at = NOW()
+            INSERT INTO push_subscriptions (user_id, subscription, endpoint, device_type)
+            VALUES ($1, $2, $3, $4)
             RETURNING *;
         `;
-        // Wait, push_subscriptions doesn't have a unique constraint on user_id+subscription yet.
-        // I'll just insert for now or check if it exists.
-
-        await db.query('DELETE FROM push_subscriptions WHERE user_id = $1 AND subscription::text = $2::text', [userId, JSON.stringify(subscription)]);
-        await db.query('INSERT INTO push_subscriptions (user_id, subscription, device_type) VALUES ($1, $2, $3)', [userId, subscription, device_type || 'web']);
+        
+        await db.query(query, [userId, subscriptionJson, endpoint, device_type || 'web']);
 
         res.json({ success: true, message: 'Subscribed to push notifications' });
     } catch (error) {

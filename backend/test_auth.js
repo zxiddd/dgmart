@@ -11,7 +11,7 @@ async function testSupabase() {
         const authEmail = `test_${Date.now()}@degloormart.phone`;
 
         console.log('1. Creating Supabase User...');
-        const tempPassword = `fb_${uid}_${Date.now()}!A`;
+        const tempPassword = `supa_${uid}_${Date.now()}!A`;
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
             email: authEmail,
             password: tempPassword,
@@ -19,7 +19,6 @@ async function testSupabase() {
             user_metadata: {
                 name: name,
                 phone: normalizedPhone,
-                firebase_uid: uid,
             },
             email_confirm: true,
             phone_confirm: true
@@ -35,15 +34,14 @@ async function testSupabase() {
 
         console.log('2. Upserting into public.users...');
         await db.query(
-            `INSERT INTO users (id, email, name, phone, role, firebase_uid)
-             VALUES ($1, $2, $3, $4, 'customer', $5)
-             ON CONFLICT (id) DO UPDATE SET phone = $4, firebase_uid = $5`,
+            `INSERT INTO users (id, email, name, phone, role)
+             VALUES ($1, $2, $3, $4, 'customer')
+             ON CONFLICT (id) DO UPDATE SET phone = $4`,
             [
                 supabaseUserId,
                 authEmail,
                 name,
                 normalizedPhone,
-                uid,
             ]
         );
         console.log('DB upsert successful.');

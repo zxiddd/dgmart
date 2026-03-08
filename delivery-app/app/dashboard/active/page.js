@@ -6,16 +6,24 @@ import { useSocket } from '@/src/context/SocketContext';
 import api from '@/src/lib/api';
 import {
   Phone, MapPin, Package, ChevronRight,
-  CheckCircle2, Circle, Loader2, X, User,
+  CheckCircle2, Circle, Loader2, X, User, Banknote, CreditCard,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { clsx } from 'clsx';
 
-const STEPS = [
+const STEPS_PREPAID = [
   { key: 'accepted_by_driver', label: 'Order Accepted', sub: 'Head to the restaurant', emoji: '✅' },
   { key: 'picked_up', label: 'Picked Up', sub: 'Collected from restaurant', emoji: '🛵', action: 'MARK PICKED UP' },
   { key: 'out_for_delivery', label: 'Out for Delivery', sub: 'On the way to customer', emoji: '🏎️', action: 'OUT FOR DELIVERY' },
   { key: 'delivered', label: 'Delivered', sub: 'Order handed to customer', emoji: '🎉', action: 'MARK DELIVERED' },
+];
+
+const STEPS_COD = [
+  { key: 'accepted_by_driver', label: 'Order Accepted', sub: 'Head to the restaurant', emoji: '✅' },
+  { key: 'picked_up', label: 'Picked Up', sub: 'Collected from restaurant', emoji: '🛵', action: 'MARK PICKED UP' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', sub: 'On the way to customer', emoji: '🏎️', action: 'OUT FOR DELIVERY' },
+  { key: 'collect_cash', label: 'Collect Cash', sub: 'Collect payment from customer', emoji: '💰', action: 'CASH COLLECTED' },
+  { key: 'delivered', label: 'Delivered', sub: 'Enter OTP to confirm delivery', emoji: '🎉', action: 'MARK DELIVERED' },
 ];
 
 export default function ActiveOrderPage() {
@@ -29,14 +37,18 @@ export default function ActiveOrderPage() {
   const [updating, setUpdating] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showCashCollect, setShowCashCollect] = useState(false);
+  const [cashCollected, setCashCollected] = useState(false);
   const [earnings, setEarnings] = useState(null);
+
+  const isCOD = order?.payment_method === 'cod';
+  const STEPS = isCOD ? STEPS_COD : STEPS_PREPAID;
 
   const loadActiveOrder = useCallback(async () => {
     try {
       const res = await api.get('/delivery/orders');
       const activeList = res.data?.active || [];
       
-      // Keep SocketContext activeOrders in sync so socket updates can find the order to mutate
       if (activeList.length > 0) {
         setActiveOrders(activeList);
       }
@@ -80,9 +92,18 @@ export default function ActiveOrderPage() {
   if (['preparing', 'ready', 'searching_rider'].includes(currentStatus)) {
     currentStatus = 'accepted_by_driver';
   }
+  // For COD: if cash has been collected locally, advance to collect_cash step
+  if (isCOD && cashCollected && currentStatus === 'out_for_delivery') {
+    currentStatus = 'collect_cash';
+  }
   const currentStepIdx = STEPS.findIndex((s) => s.key === currentStatus);
 
   const handleStatusUpdate = async (newStatus) => {
+    // For COD: "collect_cash" is a local step, not a server status
+    if (newStatus === 'collect_cash') {
+      setShowCashCollect(true);
+      return;
+    }
     if (newStatus === 'delivered') {
       setShowOTP(true);
       return;
@@ -104,6 +125,12 @@ export default function ActiveOrderPage() {
     }
   };
 
+  const handleCashCollected = () => {
+    setCashCollected(true);
+    setShowCashCollect(false);
+    toast.success('Cash collected! Now confirm delivery with OTP 💰');
+  };
+
   const handleDelivered = async (otp) => {
     setUpdating(true);
     try {
@@ -114,6 +141,7 @@ export default function ActiveOrderPage() {
         otp,
       });
       setShowOTP(false);
+      setCashCollected(false);
       setEarnings(res.data?.earnings || order?.delivery_fee || order?.earning || 40);
       setShowSuccess(true);
       setActiveOrders((prev) => prev.filter(o => (o.order_id || o.id) !== (order.order_id || order.id)));
@@ -148,6 +176,8 @@ export default function ActiveOrderPage() {
     );
   }
 
+  const orderTotal = order?.order_total || order?.order_details?.total || order?.total || 0;
+
   return (
     <div className="flex flex-col min-h-full bg-gray-50">
       {/* Success Modal */}
@@ -159,6 +189,15 @@ export default function ActiveOrderPage() {
           onConfirm={handleDelivered}
           onClose={() => setShowOTP(false)}
           loading={updating}
+        />
+      )}
+
+      {/* Cash Collect Modal */}
+      {showCashCollect && (
+        <CashCollectModal
+          amount={orderTotal}
+          onConfirm={handleCashCollected}
+          onClose={() => setShowCashCollect(false)}
         />
       )}
 
@@ -180,6 +219,26 @@ export default function ActiveOrderPage() {
               ₹{order?.delivery_fee || order?.earning || '—'}
             </p>
           </div>
+        </div>
+
+        {/* Order Amount & Payment Badge */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 font-medium">Order Amount:</span>
+            <span className="text-base font-bold text-gray-900">₹{orderTotal}</span>
+          </div>
+          <span className={clsx(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold',
+            isCOD
+              ? 'bg-orange-100 text-orange-700 border border-orange-200'
+              : 'bg-green-100 text-green-700 border border-green-200'
+          )}>
+            {isCOD ? (
+              <><Banknote className="w-3.5 h-3.5" /> Cash on Delivery</>
+            ) : (
+              <><CreditCard className="w-3.5 h-3.5" /> Prepaid</>
+            )}
+          </span>
         </div>
       </div>
 
@@ -215,6 +274,16 @@ export default function ActiveOrderPage() {
           </div>
         )}
       </div>
+
+      {/* COD Alert */}
+      {isCOD && !cashCollected && currentStepIdx >= 2 && (
+        <div className="mx-4 mt-3 bg-orange-50 border border-orange-200 rounded-2xl p-3 flex items-center gap-3">
+          <Banknote className="w-5 h-5 text-orange-600 flex-shrink-0" />
+          <p className="text-sm text-orange-700 font-medium">
+            Collect <span className="font-extrabold">₹{orderTotal}</span> cash from customer before confirming delivery
+          </p>
+        </div>
+      )}
 
       {/* Status Stepper */}
       <div className="mx-4 mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -288,6 +357,13 @@ export default function ActiveOrderPage() {
           💡 Ask the customer for the 4-digit OTP from their DegloorMart app to confirm delivery
         </p>
       )}
+
+      {/* Cash collection hint */}
+      {STEPS[currentStepIdx + 1]?.key === 'collect_cash' && (
+        <p className="text-center text-xs text-gray-400 mb-4 px-8">
+          💰 You need to collect ₹{orderTotal} cash from the customer before completing delivery
+        </p>
+      )}
     </div>
   );
 }
@@ -297,6 +373,7 @@ function NextActionButton({ step, loading, onPress }) {
   const colorMap = {
     picked_up: 'from-blue-500 to-blue-600 shadow-blue-200',
     out_for_delivery: 'from-purple-500 to-purple-600 shadow-purple-200',
+    collect_cash: 'from-orange-500 to-amber-600 shadow-orange-200',
     delivered: 'from-green-500 to-emerald-500 shadow-green-200',
   };
   return (
@@ -317,6 +394,43 @@ function NextActionButton({ step, loading, onPress }) {
         </>
       )}
     </button>
+  );
+}
+
+/* ─── Cash Collect Modal ─────────────────────────────── */
+function CashCollectModal({ amount, onConfirm, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="w-full max-w-sm bg-white rounded-3xl p-6 animate-scale-up shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-900">Collect Cash</h2>
+            <p className="text-sm text-gray-500 mt-1">Collect payment from the customer</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="bg-orange-50 rounded-2xl p-6 text-center mb-6 border border-orange-100">
+          <Banknote className="w-10 h-10 text-orange-500 mx-auto mb-2" />
+          <p className="text-xs text-gray-400 font-semibold mb-1">AMOUNT TO COLLECT</p>
+          <p className="text-4xl font-black text-orange-600">₹{amount}</p>
+          <p className="text-xs text-gray-400 mt-2">Cash on Delivery</p>
+        </div>
+
+        <p className="text-center text-xs text-gray-400 mb-5">
+          Make sure you have received the exact amount from the customer before confirming
+        </p>
+
+        <button
+          onClick={onConfirm}
+          className="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-extrabold rounded-2xl shadow-lg shadow-orange-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+        >
+          💰 CASH COLLECTED — ₹{amount}
+        </button>
+      </div>
+    </div>
   );
 }
 
