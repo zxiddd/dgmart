@@ -48,10 +48,10 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            console.warn('🚪 Admin Session Expired. Redirecting to login...');
-            supabase.auth.signOut().then(() => {
-                if (typeof window !== 'undefined') window.location.href = '/';
-            });
+            console.warn('🚪 401 Unauthorized encountered. (Hardcoded bypass active - Ignoring auto-logout).');
+            // supabase.auth.signOut().then(() => {
+            //    if (typeof window !== 'undefined') window.location.href = '/';
+            // });
         }
         return Promise.reject(error);
     }
