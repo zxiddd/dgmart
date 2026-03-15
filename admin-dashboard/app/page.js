@@ -18,22 +18,19 @@ export default function LoginPage() {
         e.preventDefault();
         setError('');
         setLoading(true);
-        
+
         console.log('🏁 Starting hardcoded login bypass...');
-        
+
         try {
             if (email === 'admin@degloormart.com' && password === 'degloormart@123') {
                 console.log('✅ Hardcoded Credentials Matched!');
-                
+
                 // Optional: Still try to log them in via Supabase so they get a token
-                // for the other API requests that need it. If it fails, we still push them.
-                try {
-                    await login(email, password);
-                    console.log('Supabase token generated implicitly.');
-                } catch(e) {
-                    console.log('Supabase token generation failed, proceeding anyway.', e.message);
-                }
-                
+                // We do NOT await this so an invalid password error here doesn't crash the redirect.
+                login(email, password).catch(e => {
+                    console.log('Supabase token generation failed (Invalid Credentials or Deleted Profile). Ignoring.', e.message);
+                });
+
                 router.push('/dashboard');
             } else {
                 setError('Invalid email or password');
