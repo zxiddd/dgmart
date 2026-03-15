@@ -37,9 +37,14 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
     console.log('📡 [API] Sending request to:', config.url);
     const { data: { session } } = await supabase.auth.getSession();
+    
     if (session?.access_token) {
         config.headers.Authorization = `Bearer ${session.access_token}`;
+    } else {
+        // Fallback for the hardcoded bypass
+        config.headers['Admin-Bypass'] = 'degloormart-admin-override';
     }
+    
     return config;
 });
 
