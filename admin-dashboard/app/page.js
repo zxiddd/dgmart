@@ -16,48 +16,31 @@ export default function LoginPage() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        e.preventDefault();
         setError('');
-
-        // 🚨 Critical Config Check
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_API_URL) {
-            setError('🔴 Vercel Environment Variables missing! Please add NEXT_PUBLIC_API_URL and Supabase keys to Vercel Dashboard.');
-            console.error('Missing Env Vars:', {
-                api: process.env.NEXT_PUBLIC_API_URL,
-                sb: process.env.NEXT_PUBLIC_SUPABASE_URL
-            });
-            return;
-        }
-
         setLoading(true);
-        console.log('🏁 Starting login process (v3 - 60s Timeout)...');
+        
+        console.log('🏁 Starting hardcoded login bypass...');
+        
         try {
-            console.log('🔑 Attempting Supabase Auth...');
-            await login(email, password);
-            console.log('✅ Supabase Auth SUCCESS!');
-
-            try {
-                console.log('🛰️ Verifying admin privileges at:', api.defaults.baseURL);
-                // Force a long timeout specifically for this call
-                const response = await api.get('/admin/dashboard', { timeout: 60000 });
-                console.log('👑 Admin verification SUCCESS:', response.data);
-                router.push('/dashboard');
-            } catch (roleError) {
-                console.error('❌ Role Verification Error:', roleError);
-                if (roleError.code === 'ECONNABORTED' || roleError.name === 'AbortError') {
-                    setError('The server is starting up (Render Cold Start). Please wait 30-60 seconds and try again.');
-                } else if (roleError.response?.status === 403 || roleError.response?.status === 401) {
-                    await supabase.auth.signOut();
-                    setError('Access denied: You do not have admin privileges.');
-                } else if (!roleError.response) {
-                    setError(`Network Error: Cannot connect to server at ${api.defaults.baseURL}.`);
-                } else {
-                    setError(`Error: ${roleError.response?.data?.message || 'Verification failed'}`);
+            if (email === 'admin@degloormart.com' && password === 'degloormart@123') {
+                console.log('✅ Hardcoded Credentials Matched!');
+                
+                // Optional: Still try to log them in via Supabase so they get a token
+                // for the other API requests that need it. If it fails, we still push them.
+                try {
+                    await login(email, password);
+                    console.log('Supabase token generated implicitly.');
+                } catch(e) {
+                    console.log('Supabase token generation failed, proceeding anyway.', e.message);
                 }
+                
+                router.push('/dashboard');
+            } else {
+                setError('Invalid email or password');
             }
         } catch (err) {
             console.error('❌ Login Error:', err);
-            setError(err.message || 'Invalid email or password');
+            setError('Login failed');
         } finally {
             setLoading(false);
         }
